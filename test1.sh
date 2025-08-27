@@ -2,7 +2,7 @@
 #SBATCH --nodes=1 
 #SBATCH --mem=64G
 #SBATCH -p gpu --gres=gpu:a100:1
-#SBATCH --cpus-per-task=4
+#SBATCH --cpus-per-task=2
 #SBATCH --job-name=default-exps
 #SBATCH --time=500:00:00
 #SBATCH --output=slurm_out/%j.out
