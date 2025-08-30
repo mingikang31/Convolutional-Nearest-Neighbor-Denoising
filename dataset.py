@@ -5,7 +5,7 @@ import numpy as np
 from PIL import Image
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
-from mnist1d.data import make_dataset
+# from mnist1d.data import make_dataset
 import matplotlib.pyplot as plt
 from scipy.ndimage import gaussian_filter
 from scipy.interpolate import interp1d
@@ -71,7 +71,7 @@ class Denoise_CIFAR10:
 
 import torch
 import numpy as np
-from mnist1d.data import make_dataset
+# from mnist1d.data import make_dataset
 
 import numpy as np
 import torch
