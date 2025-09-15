@@ -6,6 +6,7 @@ from torch import nn
 from torch.nn import functional as F
 
 from models.layers2d import (
+    Conv2d_New, 
     Conv2d_NN, 
     Conv2d_NN_Attn
 )
@@ -99,6 +100,46 @@ class ConvBlock(nn.Module):
         self.out_chans = out_chans
         self.drop_prob = drop_prob
 
+        conv2d_new_params = {
+            "kernel_size": self.args.kernel_size,
+            "stride": 1, # Stride is always 1 
+            "shuffle_pattern": self.args.shuffle_pattern,
+            "shuffle_scale": self.args.shuffle_scale,
+            "aggregation_type": self.args.aggregation_type
+        }
+
+        convnn_params = {
+            "K": self.args.K, 
+            "stride": self.args.K, # Stride is always K
+            "padding": self.args.padding,
+            "sampling_type": self.args.sampling_type,
+            "num_samples": self.args.num_samples,
+            "sample_padding": self.args.sample_padding,
+            "shuffle_pattern": self.args.shuffle_pattern,
+            "shuffle_scale": self.args.shuffle_scale,
+            "magnitude_type": self.args.magnitude_type,
+            "similarity_type": self.args.similarity_type,
+            "aggregation_type": self.args.aggregation_type, 
+            "lambda_param": self.args.lambda_param
+        }
+        
+        convnn_attn_params = {
+            "K": self.args.K, 
+            "stride": self.args.K, # Stride is always K
+            "padding": self.args.padding,
+            "sampling_type": self.args.sampling_type,
+            "num_samples": self.args.num_samples,
+            "sample_padding": self.args.sample_padding,
+            "shuffle_pattern": self.args.shuffle_pattern,
+            "shuffle_scale": self.args.shuffle_scale,
+            "magnitude_type": self.args.magnitude_type,
+            "similarity_type": self.args.similarity_type,
+            "aggregation_type": self.args.aggregation_type, 
+            "lambda_param": self.args.lambda_param,
+            
+            "attention_dropout": self.args.attention_dropout
+        }
+        
         if self.args.layer == "Conv2d":
             self.layers = nn.Sequential(
                 nn.Conv2d(in_chans, out_chans, kernel_size=3, padding=1, bias=False),
@@ -111,48 +152,26 @@ class ConvBlock(nn.Module):
                 nn.Dropout2d(drop_prob),
             )
         elif self.args.layer == "ConvNN":
-            layer_params = {
-                "shuffle_pattern": args.shuffle_pattern,
-                "shuffle_scale": args.shuffle_scale,
-                "K": args.K,
-                "stride": args.K,  # Use the actual stride parameter, not K
-                "sampling_type": args.sampling_type,
-                "num_samples": args.num_samples,
-                "sample_padding": args.sample_padding,
-                "magnitude_type": args.magnitude_type,
-                "coordinate_encoding": args.coordinate_encoding
-            }
+            
             
             self.layers = nn.Sequential(
-                Conv2d_NN(in_chans, out_chans, **layer_params),
+                Conv2d_NN(in_chans, out_chans, **convnn_params),
                 nn.InstanceNorm2d(out_chans),
                 nn.LeakyReLU(negative_slope=0.2, inplace=True),
                 nn.Dropout2d(drop_prob),
-                Conv2d_NN(out_chans, out_chans, **layer_params),
+                Conv2d_NN(out_chans, out_chans, **convnn_params),
                 nn.InstanceNorm2d(out_chans),
                 nn.LeakyReLU(negative_slope=0.2, inplace=True),
                 nn.Dropout2d(drop_prob),
             )
         elif self.args.layer == "ConvNN_Attn":
-            layer_params = {
-                "shuffle_pattern": args.shuffle_pattern,
-                "shuffle_scale": args.shuffle_scale,
-                "K": args.K,
-                "stride": args.K,  # Use the actual stride parameter, not K
-                "sampling_type": args.sampling_type,
-                "num_samples": args.num_samples,
-                "sample_padding": args.sample_padding,
-                "magnitude_type": args.magnitude_type,
-                "img_size": args.img_size[1:],  # Pass H, W
-                "attention_dropout": args.attention_dropout,
-                "coordinate_encoding": args.coordinate_encoding
-            }
+            
             self.layers = nn.Sequential(
-                Conv2d_NN(in_chans, out_chans, **layer_params),
+                Conv2d_NN_Attn(in_chans, out_chans, **convnn_attn_params),
                 nn.InstanceNorm2d(out_chans),
                 nn.LeakyReLU(negative_slope=0.2, inplace=True),
                 nn.Dropout2d(drop_prob),
-                Conv2d_NN(out_chans, out_chans, **layer_params),
+                Conv2d_NN_Attn(out_chans, out_chans, **convnn_attn_params),
                 nn.InstanceNorm2d(out_chans),
                 nn.LeakyReLU(negative_slope=0.2, inplace=True),
                 nn.Dropout2d(drop_prob),
