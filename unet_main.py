@@ -60,7 +60,7 @@ def args_parser():
     parser.add_argument("--clip_grad_norm", type=float, default=None, help="Gradient clipping value")
         
     # Optimizer Arguments 
-    parser.add_argument('--optimizer', type=str, default='adam', choices=['adam', 'sgd'], help='Default Optimizer: adam')
+    parser.add_argument('--optimizer', type=str, default='adamw', choices=['adam', 'sgd', 'adamw'], help='Default Optimizer: adam')
     parser.add_argument('--momentum', type=float, default=0.9, help='Momentum for SGD optimizer')
     parser.add_argument('--weight_decay', type=float, default=1e-6, help='Weight decay for optimizer')
     
