@@ -90,10 +90,10 @@ def main(args):
         dataset = Denoise_CIFAR10(args.data_path, args.batch_size, args.noise_std)
         args.img_size = dataset.shape()
     elif args.dataset == "bsd68":
-        dataset = Denoise_BSD68(args.data_path, args.batch_size, args.noise_std, 4000, 800, 128)
+        dataset = Denoise_BSD68(args.data_path, args.batch_size, args.noise_std, 4000, 800, 64)
         args.img_size = dataset.shape()
     elif args.dataset == "cbsd68":
-        dataset = Denoise_CBSD68(args.data_path, args.batch_size, args.noise_std, 4000, 800, 128)
+        dataset = Denoise_CBSD68(args.data_path, args.batch_size, args.noise_std, 4000, 800, 64)
         args.img_size = dataset.shape()
     elif args.dataset == "mnist1d":
         pass
