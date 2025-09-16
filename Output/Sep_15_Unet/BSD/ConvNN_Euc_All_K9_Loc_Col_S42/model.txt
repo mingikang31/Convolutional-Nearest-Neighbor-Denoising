@@ -1,0 +1,273 @@
+training: False
+_parameters: {}
+_buffers: {}
+_non_persistent_buffers_set: set()
+_backward_pre_hooks: OrderedDict()
+_backward_hooks: OrderedDict()
+_is_full_backward_hook: None
+_forward_hooks: OrderedDict()
+_forward_hooks_with_kwargs: OrderedDict()
+_forward_hooks_always_called: OrderedDict()
+_forward_pre_hooks: OrderedDict()
+_forward_pre_hooks_with_kwargs: OrderedDict()
+_state_dict_hooks: OrderedDict()
+_state_dict_pre_hooks: OrderedDict()
+_load_state_dict_pre_hooks: OrderedDict()
+_load_state_dict_post_hooks: OrderedDict()
+_modules: {'down_sample_layers': ModuleList(
+  (0): ConvBlock(
+    (layers): Sequential(
+      (0): Conv2d_NN(
+        (shuffle_layer): PixelShuffle(upscale_factor=0)
+        (unshuffle_layer): PixelUnshuffle(downscale_factor=0)
+        (conv1d_layer): Conv1d(1, 32, kernel_size=(9,), stride=(9,), bias=False)
+        (flatten): Flatten(start_dim=2, end_dim=-1)
+        (unflatten): Unflatten(dim=2, unflattened_size=torch.Size([64, 64]))
+      )
+      (1): InstanceNorm2d(32, eps=1e-05, momentum=0.1, affine=False, track_running_stats=False)
+      (2): LeakyReLU(negative_slope=0.2, inplace=True)
+      (3): Dropout2d(p=0.1, inplace=False)
+      (4): Conv2d_NN(
+        (shuffle_layer): PixelShuffle(upscale_factor=0)
+        (unshuffle_layer): PixelUnshuffle(downscale_factor=0)
+        (conv1d_layer): Conv1d(32, 32, kernel_size=(9,), stride=(9,), bias=False)
+        (flatten): Flatten(start_dim=2, end_dim=-1)
+        (unflatten): Unflatten(dim=2, unflattened_size=torch.Size([64, 64]))
+      )
+      (5): InstanceNorm2d(32, eps=1e-05, momentum=0.1, affine=False, track_running_stats=False)
+      (6): LeakyReLU(negative_slope=0.2, inplace=True)
+      (7): Dropout2d(p=0.1, inplace=False)
+    )
+  )
+  (1): ConvBlock(
+    (layers): Sequential(
+      (0): Conv2d_NN(
+        (shuffle_layer): PixelShuffle(upscale_factor=0)
+        (unshuffle_layer): PixelUnshuffle(downscale_factor=0)
+        (conv1d_layer): Conv1d(32, 64, kernel_size=(9,), stride=(9,), bias=False)
+        (flatten): Flatten(start_dim=2, end_dim=-1)
+        (unflatten): Unflatten(dim=2, unflattened_size=torch.Size([32, 32]))
+      )
+      (1): InstanceNorm2d(64, eps=1e-05, momentum=0.1, affine=False, track_running_stats=False)
+      (2): LeakyReLU(negative_slope=0.2, inplace=True)
+      (3): Dropout2d(p=0.1, inplace=False)
+      (4): Conv2d_NN(
+        (shuffle_layer): PixelShuffle(upscale_factor=0)
+        (unshuffle_layer): PixelUnshuffle(downscale_factor=0)
+        (conv1d_layer): Conv1d(64, 64, kernel_size=(9,), stride=(9,), bias=False)
+        (flatten): Flatten(start_dim=2, end_dim=-1)
+        (unflatten): Unflatten(dim=2, unflattened_size=torch.Size([32, 32]))
+      )
+      (5): InstanceNorm2d(64, eps=1e-05, momentum=0.1, affine=False, track_running_stats=False)
+      (6): LeakyReLU(negative_slope=0.2, inplace=True)
+      (7): Dropout2d(p=0.1, inplace=False)
+    )
+  )
+  (2): ConvBlock(
+    (layers): Sequential(
+      (0): Conv2d_NN(
+        (shuffle_layer): PixelShuffle(upscale_factor=0)
+        (unshuffle_layer): PixelUnshuffle(downscale_factor=0)
+        (conv1d_layer): Conv1d(64, 128, kernel_size=(9,), stride=(9,), bias=False)
+        (flatten): Flatten(start_dim=2, end_dim=-1)
+        (unflatten): Unflatten(dim=2, unflattened_size=torch.Size([16, 16]))
+      )
+      (1): InstanceNorm2d(128, eps=1e-05, momentum=0.1, affine=False, track_running_stats=False)
+      (2): LeakyReLU(negative_slope=0.2, inplace=True)
+      (3): Dropout2d(p=0.1, inplace=False)
+      (4): Conv2d_NN(
+        (shuffle_layer): PixelShuffle(upscale_factor=0)
+        (unshuffle_layer): PixelUnshuffle(downscale_factor=0)
+        (conv1d_layer): Conv1d(128, 128, kernel_size=(9,), stride=(9,), bias=False)
+        (flatten): Flatten(start_dim=2, end_dim=-1)
+        (unflatten): Unflatten(dim=2, unflattened_size=torch.Size([16, 16]))
+      )
+      (5): InstanceNorm2d(128, eps=1e-05, momentum=0.1, affine=False, track_running_stats=False)
+      (6): LeakyReLU(negative_slope=0.2, inplace=True)
+      (7): Dropout2d(p=0.1, inplace=False)
+    )
+  )
+  (3): ConvBlock(
+    (layers): Sequential(
+      (0): Conv2d_NN(
+        (shuffle_layer): PixelShuffle(upscale_factor=0)
+        (unshuffle_layer): PixelUnshuffle(downscale_factor=0)
+        (conv1d_layer): Conv1d(128, 256, kernel_size=(9,), stride=(9,), bias=False)
+        (flatten): Flatten(start_dim=2, end_dim=-1)
+        (unflatten): Unflatten(dim=2, unflattened_size=torch.Size([8, 8]))
+      )
+      (1): InstanceNorm2d(256, eps=1e-05, momentum=0.1, affine=False, track_running_stats=False)
+      (2): LeakyReLU(negative_slope=0.2, inplace=True)
+      (3): Dropout2d(p=0.1, inplace=False)
+      (4): Conv2d_NN(
+        (shuffle_layer): PixelShuffle(upscale_factor=0)
+        (unshuffle_layer): PixelUnshuffle(downscale_factor=0)
+        (conv1d_layer): Conv1d(256, 256, kernel_size=(9,), stride=(9,), bias=False)
+        (flatten): Flatten(start_dim=2, end_dim=-1)
+        (unflatten): Unflatten(dim=2, unflattened_size=torch.Size([8, 8]))
+      )
+      (5): InstanceNorm2d(256, eps=1e-05, momentum=0.1, affine=False, track_running_stats=False)
+      (6): LeakyReLU(negative_slope=0.2, inplace=True)
+      (7): Dropout2d(p=0.1, inplace=False)
+    )
+  )
+), 'conv': ConvBlock(
+  (layers): Sequential(
+    (0): Conv2d_NN(
+      (shuffle_layer): PixelShuffle(upscale_factor=0)
+      (unshuffle_layer): PixelUnshuffle(downscale_factor=0)
+      (conv1d_layer): Conv1d(256, 512, kernel_size=(9,), stride=(9,), bias=False)
+      (flatten): Flatten(start_dim=2, end_dim=-1)
+      (unflatten): Unflatten(dim=2, unflattened_size=torch.Size([4, 4]))
+    )
+    (1): InstanceNorm2d(512, eps=1e-05, momentum=0.1, affine=False, track_running_stats=False)
+    (2): LeakyReLU(negative_slope=0.2, inplace=True)
+    (3): Dropout2d(p=0.1, inplace=False)
+    (4): Conv2d_NN(
+      (shuffle_layer): PixelShuffle(upscale_factor=0)
+      (unshuffle_layer): PixelUnshuffle(downscale_factor=0)
+      (conv1d_layer): Conv1d(512, 512, kernel_size=(9,), stride=(9,), bias=False)
+      (flatten): Flatten(start_dim=2, end_dim=-1)
+      (unflatten): Unflatten(dim=2, unflattened_size=torch.Size([4, 4]))
+    )
+    (5): InstanceNorm2d(512, eps=1e-05, momentum=0.1, affine=False, track_running_stats=False)
+    (6): LeakyReLU(negative_slope=0.2, inplace=True)
+    (7): Dropout2d(p=0.1, inplace=False)
+  )
+), 'up_conv': ModuleList(
+  (0): ConvBlock(
+    (layers): Sequential(
+      (0): Conv2d_NN(
+        (shuffle_layer): PixelShuffle(upscale_factor=0)
+        (unshuffle_layer): PixelUnshuffle(downscale_factor=0)
+        (conv1d_layer): Conv1d(512, 256, kernel_size=(9,), stride=(9,), bias=False)
+        (flatten): Flatten(start_dim=2, end_dim=-1)
+        (unflatten): Unflatten(dim=2, unflattened_size=torch.Size([8, 8]))
+      )
+      (1): InstanceNorm2d(256, eps=1e-05, momentum=0.1, affine=False, track_running_stats=False)
+      (2): LeakyReLU(negative_slope=0.2, inplace=True)
+      (3): Dropout2d(p=0.1, inplace=False)
+      (4): Conv2d_NN(
+        (shuffle_layer): PixelShuffle(upscale_factor=0)
+        (unshuffle_layer): PixelUnshuffle(downscale_factor=0)
+        (conv1d_layer): Conv1d(256, 256, kernel_size=(9,), stride=(9,), bias=False)
+        (flatten): Flatten(start_dim=2, end_dim=-1)
+        (unflatten): Unflatten(dim=2, unflattened_size=torch.Size([8, 8]))
+      )
+      (5): InstanceNorm2d(256, eps=1e-05, momentum=0.1, affine=False, track_running_stats=False)
+      (6): LeakyReLU(negative_slope=0.2, inplace=True)
+      (7): Dropout2d(p=0.1, inplace=False)
+    )
+  )
+  (1): ConvBlock(
+    (layers): Sequential(
+      (0): Conv2d_NN(
+        (shuffle_layer): PixelShuffle(upscale_factor=0)
+        (unshuffle_layer): PixelUnshuffle(downscale_factor=0)
+        (conv1d_layer): Conv1d(256, 128, kernel_size=(9,), stride=(9,), bias=False)
+        (flatten): Flatten(start_dim=2, end_dim=-1)
+        (unflatten): Unflatten(dim=2, unflattened_size=torch.Size([16, 16]))
+      )
+      (1): InstanceNorm2d(128, eps=1e-05, momentum=0.1, affine=False, track_running_stats=False)
+      (2): LeakyReLU(negative_slope=0.2, inplace=True)
+      (3): Dropout2d(p=0.1, inplace=False)
+      (4): Conv2d_NN(
+        (shuffle_layer): PixelShuffle(upscale_factor=0)
+        (unshuffle_layer): PixelUnshuffle(downscale_factor=0)
+        (conv1d_layer): Conv1d(128, 128, kernel_size=(9,), stride=(9,), bias=False)
+        (flatten): Flatten(start_dim=2, end_dim=-1)
+        (unflatten): Unflatten(dim=2, unflattened_size=torch.Size([16, 16]))
+      )
+      (5): InstanceNorm2d(128, eps=1e-05, momentum=0.1, affine=False, track_running_stats=False)
+      (6): LeakyReLU(negative_slope=0.2, inplace=True)
+      (7): Dropout2d(p=0.1, inplace=False)
+    )
+  )
+  (2): ConvBlock(
+    (layers): Sequential(
+      (0): Conv2d_NN(
+        (shuffle_layer): PixelShuffle(upscale_factor=0)
+        (unshuffle_layer): PixelUnshuffle(downscale_factor=0)
+        (conv1d_layer): Conv1d(128, 64, kernel_size=(9,), stride=(9,), bias=False)
+        (flatten): Flatten(start_dim=2, end_dim=-1)
+        (unflatten): Unflatten(dim=2, unflattened_size=torch.Size([32, 32]))
+      )
+      (1): InstanceNorm2d(64, eps=1e-05, momentum=0.1, affine=False, track_running_stats=False)
+      (2): LeakyReLU(negative_slope=0.2, inplace=True)
+      (3): Dropout2d(p=0.1, inplace=False)
+      (4): Conv2d_NN(
+        (shuffle_layer): PixelShuffle(upscale_factor=0)
+        (unshuffle_layer): PixelUnshuffle(downscale_factor=0)
+        (conv1d_layer): Conv1d(64, 64, kernel_size=(9,), stride=(9,), bias=False)
+        (flatten): Flatten(start_dim=2, end_dim=-1)
+        (unflatten): Unflatten(dim=2, unflattened_size=torch.Size([32, 32]))
+      )
+      (5): InstanceNorm2d(64, eps=1e-05, momentum=0.1, affine=False, track_running_stats=False)
+      (6): LeakyReLU(negative_slope=0.2, inplace=True)
+      (7): Dropout2d(p=0.1, inplace=False)
+    )
+  )
+  (3): Sequential(
+    (0): ConvBlock(
+      (layers): Sequential(
+        (0): Conv2d_NN(
+          (shuffle_layer): PixelShuffle(upscale_factor=0)
+          (unshuffle_layer): PixelUnshuffle(downscale_factor=0)
+          (conv1d_layer): Conv1d(64, 32, kernel_size=(9,), stride=(9,), bias=False)
+          (flatten): Flatten(start_dim=2, end_dim=-1)
+          (unflatten): Unflatten(dim=2, unflattened_size=torch.Size([64, 64]))
+        )
+        (1): InstanceNorm2d(32, eps=1e-05, momentum=0.1, affine=False, track_running_stats=False)
+        (2): LeakyReLU(negative_slope=0.2, inplace=True)
+        (3): Dropout2d(p=0.1, inplace=False)
+        (4): Conv2d_NN(
+          (shuffle_layer): PixelShuffle(upscale_factor=0)
+          (unshuffle_layer): PixelUnshuffle(downscale_factor=0)
+          (conv1d_layer): Conv1d(32, 32, kernel_size=(9,), stride=(9,), bias=False)
+          (flatten): Flatten(start_dim=2, end_dim=-1)
+          (unflatten): Unflatten(dim=2, unflattened_size=torch.Size([64, 64]))
+        )
+        (5): InstanceNorm2d(32, eps=1e-05, momentum=0.1, affine=False, track_running_stats=False)
+        (6): LeakyReLU(negative_slope=0.2, inplace=True)
+        (7): Dropout2d(p=0.1, inplace=False)
+      )
+    )
+    (1): Conv2d(32, 1, kernel_size=(1, 1), stride=(1, 1))
+  )
+), 'up_transpose_conv': ModuleList(
+  (0): TransposeConvBlock(
+    (layers): Sequential(
+      (0): ConvTranspose2d(512, 256, kernel_size=(2, 2), stride=(2, 2), bias=False)
+      (1): InstanceNorm2d(256, eps=1e-05, momentum=0.1, affine=False, track_running_stats=False)
+      (2): LeakyReLU(negative_slope=0.2, inplace=True)
+    )
+  )
+  (1): TransposeConvBlock(
+    (layers): Sequential(
+      (0): ConvTranspose2d(256, 128, kernel_size=(2, 2), stride=(2, 2), bias=False)
+      (1): InstanceNorm2d(128, eps=1e-05, momentum=0.1, affine=False, track_running_stats=False)
+      (2): LeakyReLU(negative_slope=0.2, inplace=True)
+    )
+  )
+  (2): TransposeConvBlock(
+    (layers): Sequential(
+      (0): ConvTranspose2d(128, 64, kernel_size=(2, 2), stride=(2, 2), bias=False)
+      (1): InstanceNorm2d(64, eps=1e-05, momentum=0.1, affine=False, track_running_stats=False)
+      (2): LeakyReLU(negative_slope=0.2, inplace=True)
+    )
+  )
+  (3): TransposeConvBlock(
+    (layers): Sequential(
+      (0): ConvTranspose2d(64, 32, kernel_size=(2, 2), stride=(2, 2), bias=False)
+      (1): InstanceNorm2d(32, eps=1e-05, momentum=0.1, affine=False, track_running_stats=False)
+      (2): LeakyReLU(negative_slope=0.2, inplace=True)
+    )
+  )
+)}
+args: Namespace(layer='ConvNN', chans=32, num_pool_layers=4, drop_prob=0.1, K=9, kernel_size=3, padding=1, sampling_type='all', num_samples=-1, sample_padding=0, num_heads=4, attention_dropout=0.1, shuffle_pattern='NA', shuffle_scale=0, magnitude_type='euclidean', similarity_type='Loc', aggregation_type='Col', lambda_param=0.5, dataset='bsd68', data_path='./Data/BSD68', noise_std=0.05, batch_size=64, num_epochs=50, use_amp=False, clip_grad_norm=None, optimizer='adamw', momentum=0.9, weight_decay=1e-06, lr=0.0001, lr_step=2, lr_gamma=0.95, scheduler='step', device='cuda', seed=42, output_dir='./Output/Sep_15_Unet/BSD/ConvNN_Euc_All_K9_Loc_Col_S42', img_size=torch.Size([1, 64, 64]), total_params=7756097, trainable_params=7756097)
+in_chans: 1
+out_chans: 1
+chans: 32
+num_pool_layers: 4
+drop_prob: 0.1
+name: UNet ConvNN
