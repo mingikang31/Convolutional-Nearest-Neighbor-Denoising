@@ -107,3 +107,104 @@ def visualize_denoising_results(clean_img, noisy_img, denoised_img, save_path):
     plt.tight_layout()
     plt.savefig(save_path, dpi=150, bbox_inches='tight')
     plt.close()
+
+
+def visualize_denoising_results_1D(clean_signals, noisy_signals, denoised_signals, labels, save_path, 
+                                   title="1D Signal Denoising Results", ratio=2.6, dark_mode=False, zoom=1):
+    """
+    Visualize 1D signal denoising results in MNIST1D format.
+    
+    Args:
+        clean_signals: Clean ground truth signals (tensor, [N, C, T])
+        noisy_signals: Noisy input signals (tensor, [N, C, T]) 
+        denoised_signals: Denoised output signals (tensor, [N, C, T])
+        labels: Class labels for each signal (tensor, [N])
+        save_path: Path to save the visualization
+        title: Title for the plot
+        ratio: Height ratio for subplots
+        dark_mode: Use dark theme if True
+        zoom: Zoom level for plot limits
+    """
+    import matplotlib.pyplot as plt
+    from utils import measure_psnr
+    
+    # Move to CPU and detach from computation graph
+    clean_signals = clean_signals.detach().cpu()
+    noisy_signals = noisy_signals.detach().cpu()
+    denoised_signals = denoised_signals.detach().cpu()
+    labels = labels.detach().cpu() if hasattr(labels, 'detach') else labels
+    
+    # Get number of signals to plot (max 10)
+    n_signals = min(len(clean_signals), 10)
+    
+    # Create time vector (assuming normalized range like original MNIST1D)
+    seq_len = clean_signals.shape[-1]
+    t = torch.linspace(-5, 5, seq_len) / 6.0  # Following original MNIST1D scaling
+    
+    # Create figure with 3 rows (clean, noisy, denoised) and n_signals columns
+    rows, cols = 3, n_signals
+    fig = plt.figure(figsize=[cols*1.5, rows*1.5*ratio], dpi=60)
+    
+    for c in range(cols):
+        # Extract signals (squeeze channel dimension if present)
+        clean_x = clean_signals[c].squeeze() if clean_signals[c].ndim > 1 else clean_signals[c]
+        noisy_x = noisy_signals[c].squeeze() if noisy_signals[c].ndim > 1 else noisy_signals[c]
+        denoised_x = denoised_signals[c].squeeze() if denoised_signals[c].ndim > 1 else denoised_signals[c]
+        
+        # Calculate PSNR values
+        psnr_noisy = measure_psnr(clean_signals[c:c+1], noisy_signals[c:c+1]).item()
+        psnr_denoised = measure_psnr(clean_signals[c:c+1], denoised_signals[c:c+1]).item()
+        
+        # Plot clean signal (top row)
+        ax1 = plt.subplot(rows, cols, c + 1)
+        if dark_mode:
+            plt.plot(clean_x, t, 'wo', linewidth=6)
+            ax1.set_facecolor('k')
+        else:
+            plt.plot(clean_x, t, 'k-', linewidth=2)
+        
+        plt.title(f"Clean\nLabel: {int(labels[c])}", fontsize=12)
+        plt.xlim(-zoom, zoom)
+        plt.ylim(-zoom, zoom)
+        plt.gca().invert_yaxis()
+        plt.xticks([])
+        plt.yticks([])
+        
+        # Plot noisy signal (middle row)
+        ax2 = plt.subplot(rows, cols, cols + c + 1)
+        if dark_mode:
+            plt.plot(noisy_x, t, 'ro', linewidth=6)
+            ax2.set_facecolor('k')
+        else:
+            plt.plot(noisy_x, t, 'r-', linewidth=2)
+        
+        plt.title(f"Noisy\nPSNR: {psnr_noisy:.1f}dB", fontsize=12)
+        plt.xlim(-zoom, zoom)
+        plt.ylim(-zoom, zoom)
+        plt.gca().invert_yaxis()
+        plt.xticks([])
+        plt.yticks([])
+        
+        # Plot denoised signal (bottom row)
+        ax3 = plt.subplot(rows, cols, 2*cols + c + 1)
+        if dark_mode:
+            plt.plot(denoised_x, t, 'go', linewidth=6)
+            ax3.set_facecolor('k')
+        else:
+            plt.plot(denoised_x, t, 'g-', linewidth=2)
+        
+        plt.title(f"Denoised\nPSNR: {psnr_denoised:.1f}dB", fontsize=12)
+        plt.xlim(-zoom, zoom)
+        plt.ylim(-zoom, zoom)
+        plt.gca().invert_yaxis()
+        plt.xticks([])
+        plt.yticks([])
+    
+    # Add overall title
+    fig.suptitle(title, fontsize=16, y=0.98)
+    
+    # Adjust layout and save
+    plt.subplots_adjust(wspace=0.1, hspace=0.3)
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=150, bbox_inches='tight')
+    plt.close()

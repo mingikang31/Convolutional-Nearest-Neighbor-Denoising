@@ -71,7 +71,7 @@ class Denoise_CIFAR10:
 
 import torch
 import numpy as np
-# from mnist1d.data import make_dataset
+from mnist1d.data import make_dataset
 
 import numpy as np
 import torch
@@ -295,26 +295,118 @@ class MNIST1D_Plot():
             fig.suptitle(title, fontsize=24, y=1.1)
             
         plt.subplots_adjust(wspace=0, hspace=0)
-        plt.tight_layout() ; plt.show()
+        plt.tight_layout() ; plt.show()    
+
+# Alternative approach: Create a modified plot_signals method
+class MNIST1D_Plot_Extended(MNIST1D_Plot):
+    """Extended version of MNIST1D_Plot with denoising visualization"""
+    
+    def plot_denoising_results(self, clean_signals, noisy_signals, denoised_signals, labels, t, 
+                              save_path, title="1D Signal Denoising Results", zoom=5):
+        """
+        Plot denoising results using three separate calls to plot_signals logic
+        """
+        from utils import measure_psnr
         
-   
-'''Example Usage'''
+        # Move to CPU and detach
+        clean_signals = clean_signals.detach().cpu()
+        noisy_signals = noisy_signals.detach().cpu() 
+        denoised_signals = denoised_signals.detach().cpu()
+        labels = labels.detach().cpu() if hasattr(labels, 'detach') else labels
+        
+        n_signals = min(len(clean_signals), 10)
+        
+        # Create combined figure
+        rows, cols = 3, n_signals
+        fig = plt.figure(figsize=[cols*1.5, rows*1.5*2.6], dpi=60)
+        
+        # Plot clean signals (top row)
+        for c in range(n_signals):
+            ax = plt.subplot(rows, cols, c + 1)
+            x = clean_signals[c]
+            if x.ndim > 1 and x.shape[0] == 1:
+                x = x.squeeze(0)
+            
+            plt.plot(x, t, 'k-', linewidth=2)
+            plt.title(f"C - Label: {int(labels[c])}", fontsize=10)
+            plt.xlim(-zoom, zoom)
+            plt.ylim(-zoom, zoom)
+            plt.gca().invert_yaxis()
+            plt.xticks([])
+            plt.yticks([])
+        
+        # Plot noisy signals (middle row)  
+        for c in range(n_signals):
+            ax = plt.subplot(rows, cols, cols + c + 1)
+            x = noisy_signals[c]
+            if x.ndim > 1 and x.shape[0] == 1:
+                x = x.squeeze(0)
+                
+            psnr_noisy = measure_psnr(clean_signals[c:c+1], noisy_signals[c:c+1])
+            plt.plot(x, t, 'r-', linewidth=2)
+            plt.title(f"N - PSNR: {psnr_noisy:.1f}dB", fontsize=10)
+            plt.xlim(-zoom, zoom)
+            plt.ylim(-zoom, zoom)
+            plt.gca().invert_yaxis()
+            plt.xticks([])
+            plt.yticks([])
+        
+        # Plot denoised signals (bottom row)
+        for c in range(n_signals):
+            ax = plt.subplot(rows, cols, 2*cols + c + 1)
+            x = denoised_signals[c]
+            if x.ndim > 1 and x.shape[0] == 1:
+                x = x.squeeze(0)
+                
+            psnr_denoised = measure_psnr(clean_signals[c:c+1], denoised_signals[c:c+1]).item()
+            plt.plot(x, t, 'g-', linewidth=2)
+            plt.title(f"D - PSNR: {psnr_denoised:.1f}dB", fontsize=10)
+            plt.xlim(-zoom, zoom)
+            plt.ylim(-zoom, zoom)
+            plt.gca().invert_yaxis()
+            plt.xticks([])
+            plt.yticks([])
+        
+        fig.suptitle(title, fontsize=10, y=0.98)
+        plt.subplots_adjust(wspace=0, hspace=0.1)
+        plt.tight_layout()
+        plt.savefig(save_path, dpi=150, bbox_inches='tight')
+        plt.close()
 
-# # Noisy Data
-# noisy_dataset = MNIST1D_Dataset()
-# print(noisy_dataset.data_args.iid_noise_scale, noisy_dataset.data_args.corr_noise_scale)
-# noisy_data = noisy_dataset.make_dataset()
 
 
-# # Clean Data 
-# clean_dataset = MNIST1D_Dataset()
-# clean_dataset.data_args.iid_noise_scale = 0.0
-# clean_dataset.data_args.corr_noise_scale = 0.0
-# print(clean_dataset.data_args.iid_noise_scale, clean_dataset.data_args.corr_noise_scale)
+if __name__ == "__main__":
+    # # Noisy Data
+    noisy_dataset = MNIST1D_Dataset()
+    print(noisy_dataset.data_args.iid_noise_scale, noisy_dataset.data_args.corr_noise_scale)
+    noisy_data = noisy_dataset.make_dataset()
 
-# clean_data = clean_dataset.make_dataset()
 
-# Plot = MNIST1D_Plot()
+    # Clean Data 
+    clean_dataset = MNIST1D_Dataset()
+    clean_dataset.data_args.iid_noise_scale = 0.0
+    clean_dataset.data_args.corr_noise_scale = 0.0
+    print(clean_dataset.data_args.iid_noise_scale, clean_dataset.data_args.corr_noise_scale)
 
-# Plot.plot_signals(noisy_data['x'][:10], noisy_data['t'], labels=noisy_data['y'][:10], zoom = 5, title='Noise free')
+    clean_data = clean_dataset.make_dataset()
 
+    Plot = MNIST1D_Plot()
+
+    print("noisy_data['x'] shape: ", noisy_data['x'].shape)
+
+    Plot.plot_signals(noisy_data['x'][:10], noisy_data['t'], labels=noisy_data['y'][:10], zoom = 5, title='Noise free')
+
+
+
+    save_path = "denoising_results_extended.png"
+    # Method 2: Using the extended class
+    plot_extended = MNIST1D_Plot_Extended()
+    plot_extended.plot_denoising_results(
+        clean_data['x_test'][:10],
+        noisy_data['x'][:10], 
+        noisy_data['x'][:10],  # your model outputs
+        noisy_data['y_test'][:10], 
+        noisy_data['t'],
+        save_path,
+        zoom=5
+    )

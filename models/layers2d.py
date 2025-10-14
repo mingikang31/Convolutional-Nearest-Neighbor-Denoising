@@ -5,6 +5,7 @@ Layers 2D:
 (1) Conv2d_New (Baseline Nearest Neighbor Layer w/ Pixel Shuffle and Coordinate Encoding)
 (2) Conv2d_NN (Convolutional Nearest Neighbor Layer w/ Pixel Shuffle, Coordinate Encoding, Similarity and Aggregation Types, and 3 Sampling Types) 
 (3) Conv2d_NN_Attn (Convolutional Nearest Neighbor Attention Layer w/ Pixel Shuffle, Coordinate Encoding, Similarity and Aggregation Types, and 3 Sampling Types) 
+(4) Conv2d_Branching (Convolutional Nearest Neighbor Layer with Branching)
 
 """
 
@@ -20,6 +21,7 @@ class Conv2d_New(nn.Module):
                 out_channels, 
                 kernel_size,
                 stride,
+                padding, 
                 shuffle_pattern, 
                 shuffle_scale, 
                 aggregation_type
@@ -36,10 +38,11 @@ class Conv2d_New(nn.Module):
         self.out_channels = out_channels
         self.kernel_size = kernel_size
         self.stride = stride
+        self.padding = padding
         self.shuffle_pattern = shuffle_pattern
         self.shuffle_scale = shuffle_scale
-
         self.aggregation_type = aggregation_type 
+    
 
         # Positional Encoding (optional)
         self.coordinate_cache = {} 
@@ -60,19 +63,22 @@ class Conv2d_New(nn.Module):
                                       out_channels=self.out_channels, 
                                       kernel_size=self.kernel_size, 
                                       stride=self.stride, 
-                                      padding="same")
+                                      padding=self.padding, 
+                                    #   bias=False # Only if similarity_type is "Loc" (make ConvNN exactly same as Conv2d)  
+                                    )
         
     def forward(self, x): 
+        # 1. Pixel Unshuffle Layer
         x = self.unshuffle_layer(x) if self.shuffle_pattern in ["B", "BA"] else x
-        print("x shape after unshuffle:", x.shape)
-        x = self._add_coordinate_encoding(x) if self.aggregation_type == "Loc_Col" else x
-        print("x shape after adding coordinates:", x.shape)
 
-        # Conv2d Layer
+        # 2. Add Coordinate Encoding
+        x = self._add_coordinate_encoding(x) if self.aggregation_type == "Loc_Col" else x
+
+        # 3. Conv2d Layer
         x = self.conv2d_layer(x)
-        print("x shape after conv2d:", x.shape)
+
+        # 4. Pixel Shuffle Layer
         x = self.shuffle_layer(x) if self.shuffle_pattern in ["A", "BA"] else x
-        print("x shape after shuffle:", x.shape)
         return x
 
     def _add_coordinate_encoding(self, x):
@@ -133,8 +139,8 @@ class Conv2d_NN(nn.Module):
 
         # 3 Sampling Types: all, random, spatial
         self.sampling_type = sampling_type
-        self.num_samples = num_samples
-        self.sample_padding = sample_padding if sampling_type == "spatial" else 0
+        self.num_samples = int(num_samples)
+        self.sample_padding = int(sample_padding) if sampling_type == "spatial" else 0
 
         # Pixel Shuffling (optional) 
         self.shuffle_pattern = shuffle_pattern
@@ -161,22 +167,23 @@ class Conv2d_NN(nn.Module):
 
         self.in_channels_1d = self.in_channels_1d + 2 if self.aggregation_type == "Loc_Col" else self.in_channels_1d
 
+        # Conv1d Layer
         self.conv1d_layer = nn.Conv1d(
             in_channels = self.in_channels_1d,
             out_channels = self.out_channels_1d,
             kernel_size = self.K, 
             stride = self.stride, 
             padding = 0, 
-            bias = False
+            # bias = False # Only if similarity_type is "Loc" (make ConvNN exactly same as Conv2d)
         )
 
         # Flatten * Unflatten layers 
         self.flatten = nn.Flatten(start_dim=2)
         self.unflatten = None
 
+        # Shapes
         self.og_shape = None 
         self.padded_shape = None
-
 
         # Utility Variables
         self.INF = 1e5
@@ -187,7 +194,7 @@ class Conv2d_NN(nn.Module):
 
 
     def forward(self, x):  
-        # 1. Pixel Shuffle 
+        # 1. Pixel Unshuffle Layer
         x = self.unshuffle_layer(x) if self.shuffle_pattern in ["B", "BA"] else x
         self.og_shape = x.shape
 
@@ -199,7 +206,7 @@ class Conv2d_NN(nn.Module):
         # 3. Add Coordinate Encoding
         x = self._add_coordinate_encoding(x) if self.coordinate_encoding else x
 
-        # 4. Flatten 
+        # 4. Flatten Layer
         x = self.flatten(x) 
 
         # 5. Similarity and Aggregation Type 
@@ -217,17 +224,8 @@ class Conv2d_NN(nn.Module):
         else: 
             x = x
 
-        if self.similarity_type == "Loc_Col":
-            # x1 = x_sim[:, :-2, :]/math.sqrt(self.og_shape[1] - 2)
-            # x2 = x_sim[:, -2:, :]/math.sqrt(2)
-            # x_sim = torch.cat((x1, x2), dim=1)
-
-            # # With Lambda 
-            # x1 = self.lambda_param * x_sim[:, :-2, :]/math.sqrt(self.og_shape[1] - 2)
-            # x2 = (1 - self.lambda_param) * x_sim[:, -2:, :]/math.sqrt(2)
-            # x_sim = torch.cat((x1, x2), dim=1)            
+        if self.similarity_type == "Loc_Col":      
             # Normalize each modality to unit variance before combining
-            
             color_feats = x_sim[:, :-2, :]
             color_std = torch.std(color_feats, dim=[1,2], keepdim=True) + 1e-6
             color_norm = color_feats / color_std
@@ -235,85 +233,95 @@ class Conv2d_NN(nn.Module):
             coord_feats = x_sim[:, -2:, :]  # Already in [-1,1]
             x_sim = torch.cat([self.lambda_param * color_norm, 
                             (1-self.lambda_param) * coord_feats], dim=1)
-
             
-        
-        # 4. Sampling + Similarity Calculation + Aggregation
+        # 6. Sampling + Similarity Calculation + Aggregation
         if self.sampling_type == "all":
             similarity_matrix = self._calculate_euclidean_matrix(x_sim) if self.magnitude_type == "euclidean" else self._calculate_cosine_matrix(x_sim)
             prime = self._prime(x, similarity_matrix, self.K, self.maximum)
-
+            
         elif self.sampling_type == "random":
-            rand_idx = torch.randperm(x.shape[-1], device=x.device)[:self.num_samples]
-            x_sample = x_sim[:, :, rand_idx]
+            if self.num_samples > x.shape[-1]:
+                x_sample = x_sim
+                similarity_matrix = self._calculate_euclidean_matrix_N(x_sim, x_sample) if self.magnitude_type == "euclidean" else self._calculate_cosine_matrix_N(x_sim, x_sample)
+                torch.diagonal(similarity_matrix, dim1=1, dim2=2).fill_(-0.1 if self.magnitude_type == "euclidean" else 1.1)
+                prime = self._prime(x, similarity_matrix, self.K, self.maximum)
 
-            similarity_matrix = self._calculate_euclidean_matrix_N(x_sim, x_sample, sqrt=True) if self.magnitude_type == "euclidean" else self._calculate_cosine_matrix_N(x_sim, x_sample)
-
-            range_idx = torch.arange(len(rand_idx), device=x.device)
-            similarity_matrix[:, rand_idx, range_idx] = self.INF if self.magnitude_type == "euclidean" else self.NEG_INF
-
-            prime = self._prime_N(x, similarity_matrix, self.K, rand_idx, self.maximum)
+            else:
+                rand_idx = torch.randperm(x.shape[-1], device=x.device)[:self.num_samples]
+                x_sample = x_sim[:, :, rand_idx]
+                similarity_matrix = self._calculate_euclidean_matrix_N(x_sim, x_sample) if self.magnitude_type == "euclidean" else self._calculate_cosine_matrix_N(x_sim, x_sample)
+                range_idx = torch.arange(len(rand_idx), device=x.device)
+                similarity_matrix[:, rand_idx, range_idx] = self.INF if self.magnitude_type == "euclidean" else self.NEG_INF
+                prime = self._prime_N(x, similarity_matrix, self.K, rand_idx, self.maximum)
+            
 
         elif self.sampling_type == "spatial":
-            x_ind = torch.linspace(0 + self.sample_padding, self.og_shape[-2] - self.sample_padding - 1, self.num_samples, device=x.device).to(torch.long)
-            y_ind = torch.linspace(0 + self.sample_padding, self.og_shape[-1] - self.sample_padding - 1, self.num_samples, device=x.device).to(torch.long)
-            x_grid, y_grid = torch.meshgrid(x_ind, y_ind, indexing='ij')
-            x_idx_flat, y_idx_flat = x_grid.flatten(), y_grid.flatten()
-            width = self.og_shape[-2]
-            flat_indices = y_idx_flat * width + x_idx_flat
-            x_sample = x_sim[:, :, flat_indices]
+            if self.num_samples > self.og_shape[-2]:
+                x_sample = x_sim
+                similarity_matrix = self._calculate_euclidean_matrix_N(x_sim, x_sample) if self.magnitude_type == "euclidean" else self._calculate_cosine_matrix_N(x_sim, x_sample)
+                torch.diagonal(similarity_matrix, dim1=1, dim2=2).fill_(-0.1 if self.magnitude_type == "euclidean" else 1.1)
+                prime = self._prime(x, similarity_matrix, self.K, self.maximum)
+            else:
+                x_ind = torch.linspace(0 + self.sample_padding, self.og_shape[-2] - self.sample_padding - 1, self.num_samples, device=x.device).to(torch.long)
+                y_ind = torch.linspace(0 + self.sample_padding, self.og_shape[-1] - self.sample_padding - 1, self.num_samples, device=x.device).to(torch.long)
+                x_grid, y_grid = torch.meshgrid(x_ind, y_ind, indexing='ij')
+                x_idx_flat, y_idx_flat = x_grid.flatten(), y_grid.flatten()
+                width = self.og_shape[-2]
+                flat_indices = y_idx_flat * width + x_idx_flat
+                x_sample = x_sim[:, :, flat_indices]
 
-            similarity_matrix = self._calculate_euclidean_matrix_N(x_sim, x_sample, sqrt=True) if self.magnitude_type == "euclidean" else self._calculate_cosine_matrix_N(x_sim, x_sample)
+                similarity_matrix = self._calculate_euclidean_matrix_N(x_sim, x_sample) if self.magnitude_type == "euclidean" else self._calculate_cosine_matrix_N(x_sim, x_sample)
 
-            range_idx = torch.arange(len(flat_indices), device=x.device)    
-            similarity_matrix[:, flat_indices, range_idx] = self.INF if self.magnitude_type == "euclidean" else self.NEG_INF
-            prime = self._prime_N(x, similarity_matrix, self.K, flat_indices, self.maximum)
+                range_idx = torch.arange(len(flat_indices), device=x.device)    
+                similarity_matrix[:, flat_indices, range_idx] = self.INF if self.magnitude_type == "euclidean" else self.NEG_INF
+                
+                prime = self._prime_N(x, similarity_matrix, self.K, flat_indices, self.maximum)
         else:
             raise NotImplementedError("Sampling Type not Implemented")
         
-        # 5. Conv1d Layer
+        # 7. Conv1d Layer
         x = self.conv1d_layer(prime)
 
+        # 8. Unflatten Layer
         if not self.unflatten: 
             self.unflatten = nn.Unflatten(dim=2, unflattened_size=self.og_shape[2:])
         x = self.unflatten(x)
+
+        # 9. Pixel Shuffle Layer
         x = self.shuffle_layer(x) if self.shuffle_pattern in ["A", "BA"] else x 
         return x 
 
     def _calculate_euclidean_matrix(self, matrix, sqrt=False):
         norm_squared = torch.sum(matrix ** 2, dim=1, keepdim=True)
-        dot_product = torch.matmul(matrix.transpose(2, 1), matrix)
-        dist_matrix = norm_squared + norm_squared.transpose(2, 1) - 2 * dot_product
-        dist_matrix = torch.sqrt(dist_matrix) if sqrt else dist_matrix 
-        dist_matrix = torch.clamp(dist_matrix, min=0.0) 
+        dot_product = torch.matmul(matrix.transpose(1, 2), matrix)
 
+        dist_matrix = norm_squared.transpose(1, 2) + norm_squared - 2 * dot_product
+        dist_matrix = torch.clamp(dist_matrix, min=0.0)
+        dist_matrix = torch.sqrt(dist_matrix) if sqrt else dist_matrix
         torch.diagonal(dist_matrix, dim1=1, dim2=2).fill_(-0.1)
         return dist_matrix
     
     def _calculate_euclidean_matrix_N(self, matrix, matrix_sample, sqrt=False):
         norm_squared = torch.sum(matrix ** 2, dim=1, keepdim=True)
         norm_squared_sample = torch.sum(matrix_sample ** 2, dim=1, keepdim=True)
-        dot_product = torch.bmm(matrix.transpose(1, 2), matrix_sample)
+        dot_product = torch.matmul(matrix.transpose(1, 2), matrix_sample)
         
         dist_matrix = norm_squared.transpose(1, 2) + norm_squared_sample - 2 * dot_product
         dist_matrix = torch.clamp(dist_matrix, min=0.0) 
         dist_matrix = torch.sqrt(dist_matrix) if sqrt else dist_matrix
-
         return dist_matrix
     
     def _calculate_cosine_matrix(self, matrix):
-        # p=2 (L2 Norm - Euclidean Distance), dim=1 (across the channels)
         norm_matrix = F.normalize(matrix, p=2, dim=1)
-        similarity_matrix = torch.matmul(norm_matrix.transpose(2, 1), norm_matrix)
+        similarity_matrix = torch.matmul(norm_matrix.transpose(1, 2), norm_matrix)
         similarity_matrix = torch.clamp(similarity_matrix, min=-1.0, max=1.0) 
         torch.diagonal(similarity_matrix, dim1=1, dim2=2).fill_(1.1)
         return similarity_matrix
     
     def _calculate_cosine_matrix_N(self, matrix, matrix_sample):
-        # p=2 (L2 Norm - Euclidean Distance), dim=1 (across the channels)
         norm_matrix = F.normalize(matrix, p=2, dim=1) 
         norm_sample = F.normalize(matrix_sample, p=2, dim=1)
-        similarity_matrix = torch.bmm(norm_matrix.transpose(2, 1), norm_sample)
+        similarity_matrix = torch.matmul(norm_matrix.transpose(1, 2), norm_sample)
         similarity_matrix = torch.clamp(similarity_matrix, min=-1.0, max=1.0) 
         return similarity_matrix
     
@@ -321,16 +329,13 @@ class Conv2d_NN(nn.Module):
         b, c, t = matrix.shape
 
         if self.similarity_type == "Loc":
-            _, topk_indices = torch.sort(magnitude_matrix, dim=2, descending=maximum, stable=True)
+            topk_values, topk_indices = torch.sort(magnitude_matrix, dim=2, descending=maximum, stable=True)
             topk_indices = topk_indices[:, :, :K]
+            topk_indices, _ = torch.sort(topk_indices, dim=-1)
         else:
-            _, topk_indices = torch.topk(magnitude_matrix, k=K, dim=2, largest=maximum)
+            topk_values, topk_indices = torch.topk(magnitude_matrix, k=K, dim=2, largest=maximum)
 
-        topk_indices, _ = torch.sort(topk_indices, dim=-1)
         topk_indices_exp = topk_indices.unsqueeze(1).expand(b, c, t, K)    
-
-        # print("topk_indices shape:", topk_indices.shape)
-        # print("topk_indices: ", topk_indices)
         matrix_expanded = matrix.unsqueeze(-1).expand(b, c, t, K).contiguous()
         prime = torch.gather(matrix_expanded, dim=2, index=topk_indices_exp)
 
@@ -346,19 +351,16 @@ class Conv2d_NN(nn.Module):
     def _prime_N(self, matrix, magnitude_matrix, K, rand_idx, maximum):
         b, c, t = matrix.shape
         
-        _, topk_indices = torch.topk(magnitude_matrix, k=K - 1, dim=2, largest=maximum)
+        topk_values, topk_indices = torch.topk(magnitude_matrix, k=K-1, dim=2, largest=maximum)
         tk = topk_indices.shape[-1]
         assert K == tk + 1, "Error: K must be same as tk + 1. K == tk + 1."
 
-        # print("topk_indices shape:", topk_indices.shape)
-        # print("topk_indices: ", topk_indices)
-
-        
         # Map sample indices back to original matrix positions
         mapped_tensor = rand_idx[topk_indices]
         token_indices = torch.arange(t, device=matrix.device).view(1, t, 1).expand(b, t, 1)
         final_indices = torch.cat([token_indices, mapped_tensor], dim=2)
-        final_indices, _ = torch.sort(final_indices, dim=-1)
+        if self.similarity_type == "Loc":
+            final_indices, _ = torch.sort(final_indices, dim=-1)
         indices_expanded = final_indices.unsqueeze(1).expand(b, c, t, K)
 
         # Gather matrix values and apply similarity weighting
@@ -391,240 +393,295 @@ class Conv2d_NN(nn.Module):
         x_with_coords = torch.cat((x, expanded_grid), dim=1)
         return x_with_coords ### Last two channels are coordinate channels 
 
-"""(2) Conv2d_NN_Attn (All, Random, Spatial Sampling)"""
+"""(2) Conv2d_NN_Attn (All, Random, Spatial Sampling)""" ## TODO Need to work on this layer 
 class Conv2d_NN_Attn(nn.Module): 
-    """Convolution 2D Nearest Neighbor Layer"""
     def __init__(self, 
-                in_channels, 
-                out_channels, 
-                K,
-                stride, 
-                sampling_type, 
-                num_samples, 
-                sample_padding,
-                shuffle_pattern, 
-                shuffle_scale, 
-                magnitude_type,
-                img_size, 
-                attention_dropout,
-                coordinate_encoding
+                 in_channels, 
+                 out_channels, 
+                 K, 
+                 stride, 
+                 padding, 
+                 sampling_type, 
+                 num_samples, 
+                 sample_padding,
+                 shuffle_pattern, 
+                 shuffle_scale, 
+                 magnitude_type, 
+                 aggregation_type, 
+                 attention_dropout
                 ): 
-        """
-        Parameters: 
-            in_channels (int): Number of input channels.
-            out_channels (int): Number of output channels.
-            K (int): Number of Nearest Neighbors for consideration.
-            stride (int): Stride size.
-            sampling_type (str): Sampling type: "all", "random", "spatial".
-            num_samples (int): Number of samples to consider. -1 for all samples.
-            shuffle_pattern (str): Shuffle pattern: "B", "A", "BA".
-            shuffle_scale (int): Shuffle scale factor.
-            magnitude_type (str): Distance or Similarity.
-            img_size (tuple): Size of the input image (height, width) for attention.
-        """
+
         super(Conv2d_NN_Attn, self).__init__()
         
         # Assertions 
         assert K == stride, "Error: K must be same as stride. K == stride."
         assert shuffle_pattern in ["B", "A", "BA", "NA"], "Error: shuffle_pattern must be one of ['B', 'A', 'BA', 'NA']"
-        assert magnitude_type in ["distance", "similarity"], "Error: magnitude_type must be one of ['distance', 'similarity']"
+        assert magnitude_type in ["cosine", "euclidean"], "Similarity Matrix must be either cosine similarity or euclidean distance"
         assert sampling_type in ["all", "random", "spatial"], "Error: sampling_type must be one of ['all', 'random', 'spatial']"
         assert int(num_samples) > 0 or int(num_samples) == -1, "Error: num_samples must be greater than 0 or -1 for all samples"
         assert (sampling_type == "all" and int(num_samples) == -1) or (sampling_type != "all" and isinstance(num_samples, int)), "Error: num_samples must be -1 for 'all' sampling or an integer for 'random' and 'spatial' sampling"
-        
-        # Initialize parameters
+
+        assert aggregation_type in ["Col", "Loc_Col"], "Error: aggregation_type must be one of ['Col', 'Loc_Col']"
+
+        # Core Parameters 
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.K = K
         self.stride = stride
+        self.padding = padding
+
+        # 3 Sampling Types: all, random, spatial
         self.sampling_type = sampling_type
-        self.num_samples = num_samples if num_samples != -1 else 'all'  # -1 for all samples
-        self.sample_padding = sample_padding if sampling_type == "spatial" else 0
+        self.num_samples = int(num_samples)
+        self.sample_padding = int(sample_padding) if sampling_type == "spatial" else 0
+
+        # Pixel Shuffling (optional) 
         self.shuffle_pattern = shuffle_pattern
         self.shuffle_scale = shuffle_scale
+
+        # Similarity Metric 
         self.magnitude_type = magnitude_type
-        self.maximum = True if self.magnitude_type == 'similarity' else False
-        self.INF_DISTANCE = 1e10 
-        self.NEG_INF_DISTANCE = -1e10
+        self.maximum = True if self.magnitude_type == 'cosine' else False
 
-        self.img_size = img_size  # Image size for spatial sampling
-        self.num_tokens = int((img_size[0] * img_size[1]) / (shuffle_scale**2)) if self.shuffle_pattern in ["B", "BA"] else (img_size[0] * img_size[1])
+        # Positional Encoding 
+        self.coordinate_encoding = True if aggregation_type == "Loc_Col" else False
+        self.coordinate_cache = {}
 
-        # Positional Encoding (optional)
-        self.coordinate_encoding = coordinate_encoding
-        self.coordinate_cache = {} 
-        self.in_channels = in_channels + 2 if self.coordinate_encoding else in_channels
-        self.out_channels = out_channels + 2 if self.coordinate_encoding else out_channels
-        
-        # Shuffle2D/Unshuffle2D Layers
+        # Pixel Shuffle Adjustments
         self.shuffle_layer = nn.PixelShuffle(upscale_factor=self.shuffle_scale)
         self.unshuffle_layer = nn.PixelUnshuffle(downscale_factor=self.shuffle_scale)
-        
-        # Adjust Channels for PixelShuffle
-        self.in_channels_1d = self.in_channels * (self.shuffle_scale**2) if self.shuffle_pattern in ["B", "BA"] else self.in_channels
-        self.out_channels_1d = self.out_channels * (self.shuffle_scale**2) if self.shuffle_pattern in ["A", "BA"] else self.out_channels
 
-        # Dropout Layer
+        self.in_channels_1d = self.in_channels * (self.shuffle_scale ** 2) if self.shuffle_pattern in ["B", "BA"] else self.in_channels
+        self.out_channels_1d = self.out_channels * (self.shuffle_scale ** 2) if self.shuffle_pattern in ["A", "BA"] else self.out_channels
+
+        self.in_channels_1d = self.in_channels_1d + 2 if self.coordinate_encoding else self.in_channels_1d
+
+        # Conv1d Layer 
+        self.conv1d_layer = nn.Conv1d(
+            in_channels = self.in_channels_1d,
+            out_channels = self.out_channels_1d,
+            kernel_size = self.K, 
+            stride = self.stride, 
+            padding = 0, 
+        )
+
+        # Flatten * Unflatten layers
+        self.flatten = nn.Flatten(start_dim=2)
+        self.unflatten = None
+
+        # Shapes 
+        self.og_shape = None
+        self.padded_shape = None
+
+        # Utility Variables
+        self.INF = 1e5
+        self.NEG_INF = -1e5
+
+        # Attention Parameters 
         self.attention_dropout = attention_dropout
         self.dropout = nn.Dropout(p=self.attention_dropout)
-        # Conv1d Layer
-        self.conv1d_layer = nn.Conv1d(in_channels=self.in_channels_1d, 
-                                      out_channels=self.out_channels_1d, 
-                                      kernel_size=self.K, 
-                                      stride=self.stride, 
-                                      padding=0)
 
-        # Flatten Layer
-        self.flatten = nn.Flatten(start_dim=2)
+        # Query, Key, Value, Output Projections
+        self.w_q = nn.Conv1d(self.in_channels_1d, self.in_channels_1d, kernel_size=1, stride=1, bias=False)
+        self.w_k = nn.Conv1d(self.in_channels_1d, self.in_channels_1d, kernel_size=1, stride=1, bias=False)
+        # self.w_v = nn.Conv1d(self.in_channels_1d, self.in_channels_1d, kernel_size=1, stride=1, bias=False)
 
-        # Linear Projections for Q, K, V, O
-        # self.num_samples_projection = self.num_samples**2 if self.sampling_type == "spatial" else self.num_samples
-        # self.w_q = nn.Linear(self.num_tokens, self.num_tokens, bias=False) if self.sampling_type == "all" else nn.Linear(self.num_samples_projection, self.num_samples_projection, bias=False)
-        # self.w_k = nn.Linear(self.num_tokens, self.num_tokens, bias=False) 
-        # self.w_v = nn.Linear(self.num_tokens, self.num_tokens, bias=False) 
-        # self.w_o = nn.Linear(self.num_tokens, self.num_tokens, bias=False)
-        # Correct approach - project channels:
-        self.w_q = nn.Conv1d(self.in_channels_1d, self.in_channels_1d, kernel_size=1, bias=False)
-        self.w_k = nn.Conv1d(self.in_channels_1d, self.in_channels_1d, kernel_size=1, bias=False)
-        self.w_v = nn.Conv1d(self.in_channels_1d, self.in_channels_1d, kernel_size=1, bias=False)
-        self.w_o = nn.Conv1d(self.out_channels_1d, self.out_channels_1d, kernel_size=1, bias=False)
+        ## TODO Try with sequential layer for projections for ConvNN Attention 
+        self.w_v = nn.Sequential(
+            nn.Conv1d(in_channels=self.in_channels_1d, out_channels=8, kernel_size=1, stride=1, bias=False),
+            nn.ReLU(),
+            nn.Conv1d(in_channels=8, out_channels=self.in_channels_1d, kernel_size=1, stride=1, bias=False),
+        )
         
-        # Pointwise Convolution Layer
-        self.pointwise_conv = nn.Conv2d(in_channels=self.out_channels,
-                                         out_channels=self.out_channels - 2,
-                                         kernel_size=1,
-                                         stride=1,
-                                         padding=0)
-        
+        self.w_o = nn.Conv1d(self.out_channels_1d, self.out_channels_1d, kernel_size=1, stride=1, bias=False)
+
     def forward(self, x): 
-        # Coordinate Channels (optional) + Unshuffle + Flatten 
+        # 1. Pixel Unshuffle Layer 
+        x = self.unshuffle_layer(x) if self.shuffle_pattern in ["B", "BA"] else x
+        self.og_shape = x.shape
+
+        # 2. Add Padding
+        if self.padding > 0:
+            x = F.pad(x, (self.padding, self.padding, self.padding, self.padding), mode='constant', value=0)
+            self.padded_shape = x.shape
+
+        # 3. Add Coordinate Encoding
         x = self._add_coordinate_encoding(x) if self.coordinate_encoding else x
-        x_2d = self.unshuffle_layer(x) if self.shuffle_pattern in ["B", "BA"] else x
-        x = self.flatten(x_2d)
 
-        # K, V Projections 
-        k = self.dropout(self.w_k(x))
-        v = self.dropout(self.w_v(x))
+        # 4. Flatten Layer
+        x = self.flatten(x) 
 
-        if self.sampling_type == "all":    
+        # 5. K, V Projections
+        # k = self.w_k(x)
+        k = x
+        v = self.w_v(x)
+
+        if self.sampling_type == "all":
             # Q Projection
-            q = self.dropout(self.w_q(x))
+            # q = self.w_q(x)
+            q = x
+
+            similarity_matrix = self._calculate_euclidean_matrix(k, q) if self.magnitude_type == 'euclidean' else self._calculate_cosine_matrix(k, q)
+            prime = self._prime(v, similarity_matrix, self.K, self.maximum)
             
-            # ConvNN Algorithm 
-            matrix_magnitude = self._calculate_distance_matrix(k, q, sqrt=True) if self.magnitude_type == 'distance' else self._calculate_similarity_matrix(k, q)
-            prime = self._prime(v, matrix_magnitude, self.K, self.maximum)
-             
         elif self.sampling_type == "random":
-            # Select random samples
-            rand_idx = torch.randperm(x.shape[2], device=x.device)[:self.num_samples]
-            x_sample = x[:, :, rand_idx]
+            if self.num_samples > x.shape[-1]:
+                x_sample = x
+                # q = self.w_q(x_sample)
+                q = x_sample
+                similarity_matrix = self._calculate_euclidean_matrix_N(k, q) if self.magnitude_type == 'euclidean' else self._calculate_cosine_matrix_N(k, q)
+                torch.diagonal(similarity_matrix, dim1=1, dim2=2).fill_(-0.1 if self.magnitude_type == 'euclidean' else 1.1)
+                prime = self._prime(v, similarity_matrix, self.K, self.maximum)
 
-            # Q Projection
-            q = self.dropout(self.w_q(x_sample))
+            else: 
+                rand_idx = torch.randperm(x.shape[-1], device=x.device)[:self.num_samples]
+                x_sample = x[:, :, rand_idx]
 
-            # ConvNN Algorithm 
-            matrix_magnitude = self._calculate_distance_matrix_N(k, q, sqrt=True) if self.magnitude_type == 'distance' else self._calculate_similarity_matrix_N(k, q)
-            range_idx = torch.arange(len(rand_idx), device=x.device)
-            matrix_magnitude[:, rand_idx, range_idx] = self.INF_DISTANCE if self.magnitude_type == 'distance' else self.NEG_INF_DISTANCE
-            prime = self._prime_N(v, matrix_magnitude, self.K, rand_idx, self.maximum)
+                # Q Projection
+                # q = self.w_q(x_sample)
+                q = x_sample
+
+                similarity_matrix = self._calculate_euclidean_matrix_N(k, q) if self.magnitude_type == 'euclidean' else self._calculate_cosine_matrix_N(k, q)
+                
+                range_idx = torch.arange(len(rand_idx), device=x.device)
+                similarity_matrix[:, rand_idx, range_idx] = self.INF if self.magnitude_type == 'euclidean' else self.NEG_INF
+                
+                prime = self._prime_N(v, similarity_matrix, self.K, rand_idx, self.maximum)
             
         elif self.sampling_type == "spatial":
-            # Get spatial sampled indices
-            x_ind = torch.linspace(0 + self.sample_padding, x_2d.shape[2] - self.sample_padding - 1, self.num_samples, device=x.device).to(torch.long)
-            y_ind = torch.linspace(0 + self.sample_padding, x_2d.shape[3] - self.sample_padding - 1, self.num_samples, device=x.device).to(torch.long)
-            x_grid, y_grid = torch.meshgrid(x_ind, y_ind, indexing='ij')
-            x_idx_flat, y_idx_flat = x_grid.flatten(), y_grid.flatten()
-            width = x_2d.shape[2] 
-            flat_indices = y_idx_flat * width + x_idx_flat  
-            x_sample = x[:, :, flat_indices]
+            if self.num_samples > self.og_shape[-2]:
+                x_sample = x
+                # q = self.w_q(x_sample)
+                q = x
+                similarity_matrix = self._calculate_euclidean_matrix_N(k, q) if self.magnitude_type == "euclidean" else self._calculate_cosine_matrix_N(k, q)
+                torch.diagonal(similarity_matrix, dim1=1, dim2=2).fill_(-0.1 if self.magnitude_type == 'euclidean' else 1.1)
+                prime = self._prime(v, similarity_matrix, self.K, self.maximum)
+            else:
+                    
+                x_ind = torch.linspace(0 + self.sample_padding, self.og_shape[-2] - self.sample_padding - 1, self.num_samples, device=x.device).to(torch.long)
+                y_ind = torch.linspace(0 + self.sample_padding, self.og_shape[-1] - self.sample_padding - 1, self.num_samples, device=x.device).to(torch.long)
+                x_grid, y_grid = torch.meshgrid(x_ind, y_ind, indexing='ij')
+                x_idx_flat, y_idx_flat = x_grid.flatten(), y_grid.flatten()
+                width = self.og_shape[-2]
+                flat_indices = y_idx_flat * width + x_idx_flat
+                x_sample = x[:, :, flat_indices]
 
-            # Q Projection
-            q = self.dropout(self.w_q(x_sample))
+                # Q Projection
+                # q = self.w_q(x_sample)
+                q = x_sample
 
-            # ConvNN Algorithm
-            matrix_magnitude = self._calculate_distance_matrix_N(k, q, sqrt=True) if self.magnitude_type == 'distance' else self._calculate_similarity_matrix_N(k, q)
-            range_idx = torch.arange(len(flat_indices), device=x.device)
-            matrix_magnitude[:, flat_indices, range_idx] = self.INF_DISTANCE if self.magnitude_type == 'distance' else self.NEG_INF_DISTANCE
-            prime = self._prime_N(v, matrix_magnitude, self.K, flat_indices, self.maximum)
-        else: 
-            raise ValueError("Invalid sampling_type. Must be one of ['all', 'random', 'spatial'].")
+                similarity_matrix = self._calculate_euclidean_matrix_N(k, q) if self.magnitude_type == "euclidean" else self._calculate_cosine_matrix_N(k, q)
 
-        # Post-Processing 
-        x_conv = self.conv1d_layer(prime) 
-        x_drop = self.dropout(x_conv)  # Apply dropout
-        x_out = self.dropout(self.w_o(x_drop))
+                range_idx = torch.arange(len(flat_indices), device=x.device)    
+                similarity_matrix[:, flat_indices, range_idx] = self.INF if self.magnitude_type == "euclidean" else self.NEG_INF
+                
+                prime = self._prime_N(x, similarity_matrix, self.K, flat_indices, self.maximum)
+        else:
+            raise NotImplementedError("Sampling Type not Implemented")
 
-        # Unflatten + Shuffle
-        unflatten = nn.Unflatten(dim=2, unflattened_size=x_2d.shape[2:])
-        x = unflatten(x_out)  # [batch_size, out_channels
+        # 7. Conv1d Layer
+        x = self.conv1d_layer(prime)
+
+        # 8. Output Projection
+        x = self.w_o(x)
+
+        # 9. Unflatten Layer
+        if not self.unflatten: 
+            self.unflatten = nn.Unflatten(dim=2, unflattened_size=self.og_shape[2:])
+        x = self.unflatten(x)
+
+        # 10. Pixel Shuffle Layer
         x = self.shuffle_layer(x) if self.shuffle_pattern in ["A", "BA"] else x
-        x = self.pointwise_conv(x) if self.coordinate_encoding else x
         return x
 
-    def _calculate_similarity_matrix(self, K, Q):
-        k_norm = F.normalize(K, p=2, dim=1)
-        q_norm = F.normalize(Q, p=2, dim=1)
-        similarity_matrix = torch.bmm(k_norm.transpose(2, 1), q_norm) 
-        similarity_matrix = torch.clamp(similarity_matrix, min=-1.0, max=1.0)  
-        return similarity_matrix
     
-    def _calculate_similarity_matrix_N(self, K, Q):
+    def _calculate_euclidean_matrix(self, K, Q, sqrt=False):
+        k_norm_squared = torch.sum(K**2, dim=1, keepdim=True) 
+        q_norm_squared = torch.sum(Q**2, dim=1, keepdim=True) 
+
+        dot_product = torch.matmul(K.transpose(1, 2), Q)
+        
+        dist_matrix = k_norm_squared.transpose(1, 2) + q_norm_squared - 2 * dot_product
+        dist_matrix = torch.clamp(dist_matrix, min=0.0)
+        dist_matrix = torch.sqrt(dist_matrix) if sqrt else dist_matrix 
+        torch.diagonal(dist_matrix, dim1=1, dim2=2).fill_(-0.1)
+        
+        return dist_matrix
+    
+    def _calculate_euclidean_matrix_N(self, K, Q, sqrt=False):
+        k_norm_squared = torch.sum(K ** 2, dim=1, keepdim=True)
+        q_norm_squared = torch.sum(Q ** 2, dim=1, keepdim=True)
+        
+        dot_product = torch.matmul(K.transpose(1, 2), Q)
+
+        dist_matrix = k_norm_squared.transpose(1, 2) + q_norm_squared - 2 * dot_product
+        dist_matrix = torch.clamp(dist_matrix, min=0.0) 
+        dist_matrix = torch.sqrt(dist_matrix) if sqrt else dist_matrix
+
+        return dist_matrix
+    
+    def _calculate_cosine_matrix(self, K, Q):
         k_norm = F.normalize(K, p=2, dim=1)
         q_norm = F.normalize(Q, p=2, dim=1)
-        similarity_matrix = torch.bmm(k_norm.transpose(2, 1), q_norm)  
+        similarity_matrix = torch.matmul(k_norm.transpose(1, 2), q_norm)
+        similarity_matrix = torch.clamp(similarity_matrix, min=-1.0, max=1.0)
+        torch.diagonal(similarity_matrix, dim1=1, dim2=2).fill_(1.1)
+        return similarity_matrix 
+    
+    def _calculate_cosine_matrix_N(self, K, Q):
+        norm_k = F.normalize(K, p=2, dim=1)
+        norm_q = F.normalize(Q, p=2, dim=1)
+        similarity_matrix = torch.bmm(norm_k.transpose(1, 2), norm_q)
         similarity_matrix = torch.clamp(similarity_matrix, min=-1.0, max=1.0)
         return similarity_matrix
-        
-    def _calculate_distance_matrix(self, K, Q, sqrt=False):
-        norm_squared_K = torch.sum(K**2, dim=1, keepdim=True) 
-        norm_squared_Q = torch.sum(Q**2, dim=1, keepdim=True) 
-        dot_product = torch.bmm(K.transpose(2, 1), Q)  
-        dist_matrix = norm_squared_K + norm_squared_Q.transpose(2, 1) - 2 * dot_product
-        dist_matrix = torch.clamp(dist_matrix, min=-1.0, max=1.0)  # remove negative values
-        dist_matrix = torch.sqrt(dist_matrix) if sqrt else dist_matrix  # take square root if needed
-        return dist_matrix
-
-    def _calculate_distance_matrix_N(self, K, Q, sqrt=False):
-        norm_squared_K = torch.sum(K**2, dim=1, keepdim=True).permute(0, 2, 1)
-        norm_squared_Q = torch.sum(Q**2, dim=1, keepdim=True).transpose(2, 1).permute(0, 2, 1)
-        dot_product = torch.bmm(K.transpose(2, 1), Q)  
-        dist_matrix = norm_squared_K + norm_squared_Q - 2 * dot_product
-        dist_matrix = torch.clamp(dist_matrix, min=-1.0, max=1.0)  # remove negative values
-        dist_matrix = torch.sqrt(dist_matrix) if sqrt else dist_matrix  # take square root if needed
-        return dist_matrix
-
     
     def _prime(self, v, qk, K, maximum):
         b, c, t = v.shape
         topk_values, topk_indices = torch.topk(qk, k=K, dim=2, largest=maximum)
-        topk_indices_exp = topk_indices.unsqueeze(1).expand(b, c, t, K)
+        topk_indices_exp = topk_indices.unsqueeze(1).expand(b, c, t, K)    
         topk_values_exp = topk_values.unsqueeze(1).expand(b, c, t, K)
-        
+
         v_expanded = v.unsqueeze(-1).expand(b, c, t, K).contiguous()
         prime = torch.gather(v_expanded, dim=2, index=topk_indices_exp)
-        prime = topk_values_exp * prime
-        prime = prime.reshape(b, c, -1)
+        prime = prime * topk_values_exp
+
+        if self.padding > 0: 
+            prime = prime.view(b, c, self.padded_shape[-2], self.padded_shape[-1], K)
+            prime = prime[:, :, self.padding:-self.padding, self.padding:-self.padding, :]
+            prime = prime.reshape(b, c, K * self.og_shape[-2] * self.og_shape[-1])
+        else: 
+            prime = prime.view(b, c, -1)
+
         return prime
-            
+        
     def _prime_N(self, v, qk, K, rand_idx, maximum):
         b, c, t = v.shape
-        topk_values, topk_indices = torch.topk(qk, k=K-1, dim=2, largest=maximum)
+
+        topk_values, topk_indices = torch.topk(qk, k=K - 1, dim=2, largest=maximum)
         tk = topk_indices.shape[-1]
         assert K == tk + 1, "Error: K must be same as tk + 1. K == tk + 1."
         
+        # Map sample indices back to original matrix positions
         mapped_tensor = rand_idx[topk_indices]
         token_indices = torch.arange(t, device=v.device).view(1, t, 1).expand(b, t, 1)
         final_indices = torch.cat([token_indices, mapped_tensor], dim=2)
         indices_expanded = final_indices.unsqueeze(1).expand(b, c, t, K)
 
-        topk_values_exp = topk_values.unsqueeze(1).expand(b, c, t, K-1)
+        topk_values_exp = topk_values.unsqueeze(1).expand(b, c, t, K - 1)
         ones = torch.ones((b, c, t, 1), device=v.device)
-        topk_values_exp = torch.cat((ones, topk_values_exp), dim=-1)
+        topk_values_exp = torch.cat([ones, topk_values_exp], dim=-1)
 
+        # Gather matrix values and apply similarity weighting
         v_expanded = v.unsqueeze(-1).expand(b, c, t, K).contiguous()
-        prime = torch.gather(v_expanded, dim=2, index=indices_expanded) 
-        prime = topk_values_exp * prime
-        prime = prime.reshape(b, c, -1)
+        prime = torch.gather(v_expanded, dim=2, index=indices_expanded)
+        prime = prime * topk_values_exp
+
+        if self.padding > 0:
+            prime = prime.view(b, c, self.padded_shape[-2], self.padded_shape[-1], K)
+            prime = prime[:, :, self.padding:-self.padding, self.padding:-self.padding, :]
+            prime = prime.reshape(b, c, K * self.og_shape[-2] * self.og_shape[-1])
+        else:
+            prime = prime.view(b, c, -1)
         return prime
     
     def _add_coordinate_encoding(self, x):
@@ -644,3 +701,177 @@ class Conv2d_NN_Attn(nn.Module):
 
         x_with_coords = torch.cat((x, expanded_grid), dim=1)
         return x_with_coords
+
+
+class Conv2d_Branching(nn.Module):
+    def __init__(self, 
+                 in_channels, 
+                 out_channels, 
+                 kernel_size, 
+                 K, 
+                 stride, 
+                 padding, 
+                 sampling_type, 
+                 num_samples, 
+                 sample_padding, 
+                 shuffle_pattern, 
+                 shuffle_scale, 
+                 magnitude_type, 
+                 similarity_type, 
+                 aggregation_type, 
+                 lambda_param, 
+                 branch_ratio=0.5
+                 ):
+        super(Conv2d_Branching, self).__init__()
+
+        assert 0 <= branch_ratio <= 1, "Branch ratio must be between 0 and 1"
+
+        self.branch_ratio = branch_ratio
+        self.in_channels = in_channels
+        self.out_channels_1 = int(out_channels * branch_ratio)
+        self.out_channels_2 = out_channels - self.out_channels_1
+
+        if self.branch_ratio != 0:
+            self.branch1 = Conv2d_NN(
+                in_channels=self.in_channels,
+                out_channels=self.out_channels_1,
+                K=K,
+                stride=K,
+                padding=padding,
+                sampling_type=sampling_type,
+                num_samples=num_samples,
+                sample_padding=sample_padding,
+                shuffle_pattern=shuffle_pattern,
+                shuffle_scale=shuffle_scale,
+                magnitude_type=magnitude_type,
+                similarity_type=similarity_type,
+                aggregation_type=aggregation_type,
+                lambda_param=lambda_param
+            )
+        if self.branch_ratio != 1:
+            self.branch2 = nn.Conv2d(
+                in_channels=self.in_channels,
+                out_channels=self.out_channels_2,
+                kernel_size=kernel_size,
+                stride=1,
+                padding="same"
+            )
+
+            
+        self.pointwise_conv = nn.Conv2d(
+            in_channels=out_channels,
+            out_channels=out_channels,
+            kernel_size=1,
+            stride=1,
+            padding=0
+        )
+        
+        # self.channel_shuffle = nn.ChannelShuffle(groups=2) # Optional Channel Shuffle - not in use
+
+    def forward(self, x):
+        if self.branch_ratio == 0:
+            x = self.branch2(x)
+            out = self.pointwise_conv(x)
+            return out
+        if self.branch_ratio == 1:
+            x = self.branch1(x)
+            out = self.pointwise_conv(x)
+            return out
+        
+        x1 = self.branch1(x)
+        x2 = self.branch2(x)
+
+        # x1 = self.branch(x[:, :self.in_channels_1, :, :]
+        # x2 = self.conv2d(x[:, self.in_channels_2:, :, :])
+        out = torch.cat((x1, x2), dim=1)
+        out = self.pointwise_conv(out)
+        # print("Out Shape:", out.shape)
+        return out
+
+
+class Conv2d_Attn_Branching(nn.Module):
+    def __init__(self, 
+                 in_channels, 
+                 out_channels, 
+                 kernel_size, 
+                 K, 
+                 stride, 
+                 padding, 
+                 sampling_type, 
+                 num_samples, 
+                 sample_padding, 
+                 shuffle_pattern, 
+                 shuffle_scale, 
+                 magnitude_type, 
+                 aggregation_type, 
+                 attention_dropout,
+                 branch_ratio=0.5
+                 ):
+        super(Conv2d_Attn_Branching, self).__init__()
+
+        assert 0 <= branch_ratio <= 1, "Branch ratio must be between 0 and 1"
+
+        self.branch_ratio = branch_ratio
+        self.in_channels = in_channels
+        # self.in_channels_1 = int(in_channels * branch_ratio)
+        # self.in_channels_2 = in_channels - self.in_channels_1
+        self.out_channels_1 = int(out_channels * branch_ratio)
+        self.out_channels_2 = out_channels - self.out_channels_1
+
+        if self.branch_ratio != 0:
+            self.branch1 = Conv2d_NN_Attn(
+                in_channels=self.in_channels,
+                out_channels=self.out_channels_1,
+                K=K,
+                stride=K,
+                padding=padding,
+                sampling_type=sampling_type,
+                num_samples=num_samples,
+                sample_padding=sample_padding,
+                shuffle_pattern=shuffle_pattern,
+                shuffle_scale=shuffle_scale,
+                magnitude_type=magnitude_type,
+                aggregation_type=aggregation_type,
+                attention_dropout=attention_dropout
+            )
+        if self.branch_ratio != 1:
+            self.branch2 = nn.Conv2d(
+                in_channels=self.in_channels,
+                out_channels=self.out_channels_2,
+                kernel_size=kernel_size,
+                stride=1,
+                padding="same"
+            )
+
+            
+        self.pointwise_conv = nn.Conv2d(
+            in_channels=out_channels,
+            out_channels=out_channels,
+            kernel_size=1,
+            stride=1,
+            padding=0
+        )
+        
+        # self.channel_shuffle = nn.ChannelShuffle(groups=2) # Optional Channel Shuffle - not in use
+
+    def forward(self, x):
+        if self.branch_ratio == 0:
+            x = self.branch2(x)
+            out = self.pointwise_conv(x)
+            return out
+        if self.branch_ratio == 1:
+            x = self.branch1(x)
+            out = self.pointwise_conv(x)
+            return out
+        
+        x1 = self.branch1(x)
+        x2 = self.branch2(x)
+
+        # x1 = self.branch(x[:, :self.in_channels_1, :, :]
+        # x2 = self.conv2d(x[:, self.in_channels_2:, :, :])
+        out = torch.cat((x1, x2), dim=1)
+        out = self.pointwise_conv(out)
+        # print("Out Shape:", out.shape)
+        return out
+
+
