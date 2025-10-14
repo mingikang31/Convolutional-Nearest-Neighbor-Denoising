@@ -71,7 +71,7 @@ class Denoise_CIFAR10:
 
 import torch
 import numpy as np
-from mnist1d.data import make_dataset
+# from mnist1d.data import make_dataset
 
 import numpy as np
 import torch

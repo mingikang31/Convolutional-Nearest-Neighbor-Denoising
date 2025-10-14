@@ -1,0 +1,54 @@
+Model Complexity (Profiler): GFLOPs: 5.88785981, Trainable Parameters: 7.76653100 M
+[Epoch 001] Time: 19.1105s | [Train] Loss: 0.03306080 PSNR: 17.2576dB | [Test] Loss: 0.00960340 PSNR: 20.1802dB
+[Epoch 002] Time: 18.9377s | [Train] Loss: 0.00858727 PSNR: 20.7195dB | [Test] Loss: 0.00721318 PSNR: 21.4251dB
+[Epoch 003] Time: 19.0931s | [Train] Loss: 0.00770069 PSNR: 21.2221dB | [Test] Loss: 0.00637139 PSNR: 21.9621dB
+[Epoch 004] Time: 18.9739s | [Train] Loss: 0.00661411 PSNR: 21.8698dB | [Test] Loss: 0.00521434 PSNR: 22.8348dB
+[Epoch 005] Time: 19.0295s | [Train] Loss: 0.00651715 PSNR: 21.9544dB | [Test] Loss: 0.00509800 PSNR: 22.9297dB
+[Epoch 006] Time: 19.0532s | [Train] Loss: 0.00569563 PSNR: 22.5165dB | [Test] Loss: 0.00451926 PSNR: 23.4544dB
+[Epoch 007] Time: 19.0226s | [Train] Loss: 0.00512307 PSNR: 22.9756dB | [Test] Loss: 0.00434610 PSNR: 23.6237dB
+[Epoch 008] Time: 19.0180s | [Train] Loss: 0.00497605 PSNR: 23.0968dB | [Test] Loss: 0.00483233 PSNR: 23.1659dB
+[Epoch 009] Time: 19.0782s | [Train] Loss: 0.00487241 PSNR: 23.1743dB | [Test] Loss: 0.00417576 PSNR: 23.7966dB
+[Epoch 010] Time: 19.0026s | [Train] Loss: 0.00476327 PSNR: 23.3304dB | [Test] Loss: 0.00595786 PSNR: 22.2565dB
+[Epoch 011] Time: 19.0476s | [Train] Loss: 0.00452589 PSNR: 23.5898dB | [Test] Loss: 0.00371756 PSNR: 24.3011dB
+[Epoch 012] Time: 19.0667s | [Train] Loss: 0.00490057 PSNR: 23.2583dB | [Test] Loss: 0.00712762 PSNR: 21.5118dB
+[Epoch 013] Time: 19.0147s | [Train] Loss: 0.00439294 PSNR: 23.6527dB | [Test] Loss: 0.00350406 PSNR: 24.5616dB
+[Epoch 014] Time: 19.0035s | [Train] Loss: 0.00422765 PSNR: 23.8257dB | [Test] Loss: 0.00337264 PSNR: 24.7237dB
+[Epoch 015] Time: 19.0949s | [Train] Loss: 0.00437323 PSNR: 23.6765dB | [Test] Loss: 0.00441888 PSNR: 23.5557dB
+[Epoch 016] Time: 19.0633s | [Train] Loss: 0.00426271 PSNR: 23.7932dB | [Test] Loss: 0.00334463 PSNR: 24.7604dB
+[Epoch 017] Time: 19.0169s | [Train] Loss: 0.00445183 PSNR: 23.6297dB | [Test] Loss: 0.00340268 PSNR: 24.6869dB
+[Epoch 018] Time: 19.0255s | [Train] Loss: 0.00432495 PSNR: 23.7590dB | [Test] Loss: 0.00417316 PSNR: 23.8002dB
+[Epoch 019] Time: 19.0271s | [Train] Loss: 0.00416745 PSNR: 23.8966dB | [Test] Loss: 0.00335797 PSNR: 24.7421dB
+[Epoch 020] Time: 19.0553s | [Train] Loss: 0.00402488 PSNR: 24.0489dB | [Test] Loss: 0.00320021 PSNR: 24.9523dB
+[Epoch 021] Time: 19.0641s | [Train] Loss: 0.00391902 PSNR: 24.1667dB | [Test] Loss: 0.00305577 PSNR: 25.1531dB
+[Epoch 022] Time: 19.0411s | [Train] Loss: 0.00397889 PSNR: 24.0917dB | [Test] Loss: 0.00395842 PSNR: 24.0320dB
+[Epoch 023] Time: 19.0984s | [Train] Loss: 0.00412646 PSNR: 24.0072dB | [Test] Loss: 0.00309222 PSNR: 25.1010dB
+[Epoch 024] Time: 19.0640s | [Train] Loss: 0.00402640 PSNR: 24.0750dB | [Test] Loss: 0.00432054 PSNR: 23.6604dB
+[Epoch 025] Time: 18.9825s | [Train] Loss: 0.00374837 PSNR: 24.3616dB | [Test] Loss: 0.00382825 PSNR: 24.1745dB
+[Epoch 026] Time: 19.0462s | [Train] Loss: 0.00375469 PSNR: 24.3336dB | [Test] Loss: 0.00319077 PSNR: 24.9645dB
+[Epoch 027] Time: 19.1458s | [Train] Loss: 0.00411852 PSNR: 24.0561dB | [Test] Loss: 0.00323402 PSNR: 24.9058dB
+[Epoch 028] Time: 19.0225s | [Train] Loss: 0.00401283 PSNR: 24.0731dB | [Test] Loss: 0.00310441 PSNR: 25.0829dB
+[Epoch 029] Time: 19.0611s | [Train] Loss: 0.00360955 PSNR: 24.5031dB | [Test] Loss: 0.00311341 PSNR: 25.0694dB
+[Epoch 030] Time: 19.1280s | [Train] Loss: 0.00378489 PSNR: 24.3444dB | [Test] Loss: 0.00280204 PSNR: 25.5309dB
+[Epoch 031] Time: 19.0896s | [Train] Loss: 0.00342401 PSNR: 24.7025dB | [Test] Loss: 0.00276208 PSNR: 25.5902dB
+[Epoch 032] Time: 19.0382s | [Train] Loss: 0.00359151 PSNR: 24.5299dB | [Test] Loss: 0.00337590 PSNR: 24.7196dB
+[Epoch 033] Time: 19.0896s | [Train] Loss: 0.00343357 PSNR: 24.7278dB | [Test] Loss: 0.00274084 PSNR: 25.6225dB
+[Epoch 034] Time: 19.0305s | [Train] Loss: 0.00348098 PSNR: 24.6817dB | [Test] Loss: 0.00315529 PSNR: 25.0130dB
+[Epoch 035] Time: 19.0178s | [Train] Loss: 0.00348595 PSNR: 24.6760dB | [Test] Loss: 0.00277751 PSNR: 25.5669dB
+[Epoch 036] Time: 19.0671s | [Train] Loss: 0.00369348 PSNR: 24.4731dB | [Test] Loss: 0.00270758 PSNR: 25.6777dB
+[Epoch 037] Time: 19.1127s | [Train] Loss: 0.00347588 PSNR: 24.6878dB | [Test] Loss: 0.00277037 PSNR: 25.5784dB
+[Epoch 038] Time: 19.0881s | [Train] Loss: 0.00338724 PSNR: 24.7575dB | [Test] Loss: 0.00305324 PSNR: 25.1567dB
+[Epoch 039] Time: 19.0292s | [Train] Loss: 0.00349954 PSNR: 24.6717dB | [Test] Loss: 0.00298831 PSNR: 25.2474dB
+[Epoch 040] Time: 19.0852s | [Train] Loss: 0.00329863 PSNR: 24.9155dB | [Test] Loss: 0.00245172 PSNR: 26.1094dB
+[Epoch 041] Time: 19.1298s | [Train] Loss: 0.00336401 PSNR: 24.8476dB | [Test] Loss: 0.00266716 PSNR: 25.7422dB
+[Epoch 042] Time: 19.0435s | [Train] Loss: 0.00339559 PSNR: 24.7975dB | [Test] Loss: 0.00278284 PSNR: 25.5612dB
+[Epoch 043] Time: 19.0125s | [Train] Loss: 0.00306286 PSNR: 25.1918dB | [Test] Loss: 0.00276885 PSNR: 25.5818dB
+[Epoch 044] Time: 19.0766s | [Train] Loss: 0.00318705 PSNR: 25.0559dB | [Test] Loss: 0.00254796 PSNR: 25.9456dB
+[Epoch 045] Time: 19.0007s | [Train] Loss: 0.00321714 PSNR: 24.9923dB | [Test] Loss: 0.00266051 PSNR: 25.7554dB
+[Epoch 046] Time: 19.0680s | [Train] Loss: 0.00326812 PSNR: 24.9599dB | [Test] Loss: 0.00296369 PSNR: 25.2843dB
+[Epoch 047] Time: 19.0255s | [Train] Loss: 0.00340605 PSNR: 24.7947dB | [Test] Loss: 0.00268456 PSNR: 25.7141dB
+[Epoch 048] Time: 19.0002s | [Train] Loss: 0.00313377 PSNR: 25.1059dB | [Test] Loss: 0.00267627 PSNR: 25.7332dB
+[Epoch 049] Time: 19.0718s | [Train] Loss: 0.00316330 PSNR: 25.0990dB | [Test] Loss: 0.00240017 PSNR: 26.1997dB
+[Epoch 050] Time: 19.0446s | [Train] Loss: 0.00309109 PSNR: 25.1477dB | [Test] Loss: 0.00244452 PSNR: 26.1234dB
+
+Average Epoch Time: 19.0502s
+Max PSNR: 26.1997dB at Epoch 49
