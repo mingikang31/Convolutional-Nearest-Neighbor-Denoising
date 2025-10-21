@@ -181,7 +181,7 @@ def Train_Eval(args,
             print(epoch_result)
             epoch_results.append(epoch_result)
         else: 
-            visualize_denoising_results(img, noisy_img, outputs, save_path)
+            visualize_denoising_results(img.squeeze(0), noisy_img.squeeze(0), outputs.squeeze(0), save_path)
             epoch_result += f"[Test] Loss: {test_running_loss:.8f} PSNR: {test_psnr:.4f}dB"
             print(epoch_result)
             epoch_results.append(epoch_result)

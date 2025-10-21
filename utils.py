@@ -58,6 +58,7 @@ def measure_psnr(img, img2):
     max_pixel = 1.0  # Assuming the images are normalized between 0 and 1
     psnr = 20 * torch.log10(max_pixel / torch.sqrt(mse))
     return psnr
+    
 def visualize_denoising_results(clean_img, noisy_img, denoised_img, save_path):
     """
     Visualize denoising results.
@@ -86,7 +87,6 @@ def visualize_denoising_results(clean_img, noisy_img, denoised_img, save_path):
         f'Noisy Input\nPSNR: {psnr_noisy:.2f} dB',
         f'Denoised Output\nPSNR: {psnr_denoised:.2f} dB'
     ]
-
     for ax, img_tensor, title in zip(axes, images, titles):
         # Check if the image is grayscale or RGB
         if img_tensor.shape[0] == 1:
