@@ -266,7 +266,7 @@ class Conv2d_NN(nn.Module):
                 y_ind = torch.linspace(0 + self.sample_padding, self.og_shape[-1] - self.sample_padding - 1, self.num_samples, device=x.device).to(torch.long)
                 x_grid, y_grid = torch.meshgrid(x_ind, y_ind, indexing='ij')
                 x_idx_flat, y_idx_flat = x_grid.flatten(), y_grid.flatten()
-                width = self.og_shape[-2]
+                width = self.og_shape[-1]
                 flat_indices = y_idx_flat * width + x_idx_flat
                 x_sample = x_sim[:, :, flat_indices]
 

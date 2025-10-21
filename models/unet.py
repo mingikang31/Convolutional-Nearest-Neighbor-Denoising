@@ -135,8 +135,8 @@ class ConvBlock(nn.Module):
         }
 
         if self.args.layer == "Conv2d":
-            self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1, bias=False)
-            self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1, bias=False)
+            self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1, bias=True)
+            self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1, bias=True)
         elif self.args.layer == "ConvNN":
             self.conv1 = Conv2d_NN(in_channels, out_channels, **convnn_params)
             self.conv2 = Conv2d_NN(out_channels, out_channels, **convnn_params)
