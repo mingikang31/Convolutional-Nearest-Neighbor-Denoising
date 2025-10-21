@@ -41,10 +41,17 @@ class NoisyBSD68(Dataset):
 
         return noisy_img, clean_target
 
+    def test_image(self, index=2): # Castle image
+        img = self.original_images[index]
+        noise = torch.randn_like(img) * self.noise_std
+        noisy_img = torch.clamp(img + noise, 0., 1.)
+        noisy_img, img = noisy_img.unsqueeze(0), img.unsqueeze(0)
+        return noisy_img, img
+    
     @staticmethod 
     def load_images(data_dir):
         images = []
-        for filename in os.listdir(data_dir):
+        for filename in sorted(os.listdir(data_dir)):  # Sort numerically
             try:
                 img = Image.open(os.path.join(data_dir, filename)).convert('L') # Grayscale
                 img_np = np.array(img, dtype=np.float32) / 255.0
@@ -63,6 +70,7 @@ class NoisyCBSD68(Dataset):
 
         self.original_images = self.load_images(data_dir)
 
+
         self.transform = transforms.Compose([
             transforms.RandomCrop(target_size), 
             transforms.RandomVerticalFlip(p=0.5), 
@@ -76,7 +84,7 @@ class NoisyCBSD68(Dataset):
 
     def __len__(self):
         return self.target_count
-
+    
     def __getitem__(self, index): 
         base_img = random.choice(self.original_images)
         clean_target = self.transform(base_img)
@@ -85,10 +93,17 @@ class NoisyCBSD68(Dataset):
 
         return noisy_img, clean_target
 
+    def test_image(self, index=10): # Castle Image
+        img = self.original_images[index]
+        noise = torch.randn_like(img) * self.noise_std
+        noisy_img = torch.clamp(img + noise, 0., 1.)
+        noisy_img, img = noisy_img.unsqueeze(0), img.unsqueeze(0)
+        return noisy_img, img
+    
     @staticmethod 
     def load_images(data_dir):
         images = []
-        for filename in os.listdir(data_dir):
+        for filename in sorted(os.listdir(data_dir), key=lambda x: int(x.split('.')[0])):  # Sort numerically
             try:
                 img = Image.open(os.path.join(data_dir, filename)).convert('RGB') # Grayscale
                 img_np = np.array(img, dtype=np.float32) / 255.0

@@ -53,6 +53,7 @@ def args_parser():
     parser.add_argument("--dataset", type=str, default="bsd68", choices=["cifar10", "bsd68", 'cbsd68', 'mnist1d'], help="Dataset to use for training and evaluation")
     parser.add_argument("--data_path", type=str, default="./Data/BSD68", help="Path to the dataset")
     parser.add_argument("--noise_std", type=float, default=0.2, help="Standard deviation of Gaussian noise")
+    parser.add_argument("--img_size", type=int, default=64, help="Image size for training and evaluation")
     
     # Training Arguments
     parser.add_argument("--batch_size", type=int, default=64, help="Batch size for training and evaluation")
@@ -92,10 +93,10 @@ def main(args):
         dataset = Denoise_CIFAR10(args.data_path, args.batch_size, args.noise_std)
         args.img_size = dataset.shape()
     elif args.dataset == "bsd68":
-        dataset = Denoise_BSD68(args.data_path, args.batch_size, args.noise_std, 4000, 800, 128)
+        dataset = Denoise_BSD68(args.data_path, args.batch_size, args.noise_std, 120000, args.img_size)
         args.img_size = dataset.shape()
     elif args.dataset == "cbsd68":
-        dataset = Denoise_CBSD68(args.data_path, args.batch_size, args.noise_std, 4000, 800, 128)
+        dataset = Denoise_CBSD68(args.data_path, args.batch_size, args.noise_std, 120000, args.img_size)
         args.img_size = dataset.shape()
     elif args.dataset == "mnist1d":
         pass
@@ -134,8 +135,7 @@ def main(args):
         # Training Modules 
         train_eval_results = Train_Eval(args, 
                                     model, 
-                                    dataset.train_loader, 
-                                    dataset.test_loader
+                                    dataset, 
                                     )
         
         # Storing Results in output directory 

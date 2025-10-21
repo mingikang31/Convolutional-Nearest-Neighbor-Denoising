@@ -14,8 +14,7 @@ from dataset import MNIST1D_Plot_Extended
 
 def Train_Eval(args, 
                model: nn.Module, 
-               train_loader, 
-               test_loader
+                dataset
                ):
     
     if args.seed != 0:
@@ -57,7 +56,7 @@ def Train_Eval(args,
         import torch.profiler
 
         # Get a single batch from the train_loader to determine input size
-        input_tensor, _ = next(iter(train_loader))
+        input_tensor, _ = next(iter(dataset.train_loader))
         input_tensor = input_tensor.to(device)
 
         # Profile a single forward pass
@@ -107,7 +106,7 @@ def Train_Eval(args,
         start_time = time.time()
 
         train_psnr = 0.0
-        for noisy_img, img  in train_loader: 
+        for noisy_img, img  in dataset.train_loader: 
             img, noisy_img = img.to(device), noisy_img.to(device)
             optimizer.zero_grad()
             
@@ -134,16 +133,31 @@ def Train_Eval(args,
             train_psnr += psnr.item()
             train_running_loss += loss.item()
 
-        train_psnr /= len(train_loader)
+        train_psnr /= len(dataset.train_loader)
         end_time = time.time()
-        epoch_result += f"[Epoch {epoch+1:03d}] Time: {end_time - start_time:.4f}s | [Train] Loss: {train_running_loss/len(train_loader):.8f} PSNR: {train_psnr:.4f}dB | "
+        epoch_result += f"[Epoch {epoch+1:03d}] Time: {end_time - start_time:.4f}s | [Train] Loss: {train_running_loss/len(dataset.train_loader):.8f} PSNR: {train_psnr:.4f}dB | "
         epoch_times.append(end_time - start_time)
         
         # Model Evaluation 
         model.eval()
         test_psnr = 0.0
+        
         with torch.no_grad():
-            for noisy_img, img in test_loader: 
+            if args.dataset == "cifar10":
+                for noisy_img, img in dataset.test_loader: 
+                    img, noisy_img = img.to(device), noisy_img.to(device)
+                    if args.use_amp:
+                        with torch.cuda.amp.autocast():
+                            outputs = model(noisy_img)
+                    else: 
+                        outputs = model(noisy_img)
+                    loss = criterion(outputs, img)
+                    test_running_loss += loss.item()
+
+                    psnr = measure_psnr(outputs, img)
+                    test_psnr += psnr.item()
+            else: # CBSD68/BSD68 Single Image Test
+                noisy_img, img = dataset.test_data
                 img, noisy_img = img.to(device), noisy_img.to(device)
                 if args.use_amp:
                     with torch.cuda.amp.autocast():
@@ -151,19 +165,26 @@ def Train_Eval(args,
                 else: 
                     outputs = model(noisy_img)
                 loss = criterion(outputs, img)
-                test_running_loss += loss.item()
+                test_running_loss += loss.item() 
 
                 psnr = measure_psnr(outputs, img)
                 test_psnr += psnr.item()
 
         # Save Visual
         save_path = os.path.join(args.output_dir, f"test_epoch_{epoch+1}.png")
-        visualize_denoising_results(img[0], noisy_img[0], outputs[0], save_path)
+        if args.dataset == "cifar10":
+            visualize_denoising_results(img[0], noisy_img[0], outputs[0], save_path)
+        
 
-        test_psnr /= len(test_loader)
-        epoch_result += f"[Test] Loss: {test_running_loss/len(test_loader):.8f} PSNR: {test_psnr:.4f}dB"
-        print(epoch_result)
-        epoch_results.append(epoch_result)
+            test_psnr /= len(dataset.test_loader)
+            epoch_result += f"[Test] Loss: {test_running_loss/len(dataset.test_loader):.8f} PSNR: {test_psnr:.4f}dB"
+            print(epoch_result)
+            epoch_results.append(epoch_result)
+        else: 
+            visualize_denoising_results(img, noisy_img, outputs, save_path)
+            epoch_result += f"[Test] Loss: {test_running_loss:.8f} PSNR: {test_psnr:.4f}dB"
+            print(epoch_result)
+            epoch_results.append(epoch_result)
 
         # Max PSNR Check
         if test_psnr > max_psnr:

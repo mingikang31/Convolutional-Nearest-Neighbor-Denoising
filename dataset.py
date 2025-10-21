@@ -15,38 +15,38 @@ from Data.utils import NoisyBSD68, NoisyCBSD68, NoisyCIFAR10
 
 
 class Denoise_BSD68:
-    def __init__(self, data_dir, batch_size, noise_std, train_count, test_count, target_size):
+    def __init__(self, data_dir, batch_size, noise_std, train_count, target_size):
         self.data_dir = data_dir
         self.batch_size = batch_size
         self.noise_std = noise_std
         self.train_count = train_count
-        self.test_count = test_count
         self.target_size = target_size
 
+        # Test dataset and DataLoader
         self.train_dataset = NoisyBSD68(data_dir=data_dir, target_count=train_count, target_size=target_size, noise_std=noise_std)
-        self.test_dataset = NoisyBSD68(data_dir=data_dir, target_count=test_count, target_size=target_size, noise_std=noise_std)
-
         self.train_loader = DataLoader(self.train_dataset, batch_size=batch_size, shuffle=True, num_workers=4)
-        self.test_loader = DataLoader(self.test_dataset, batch_size=batch_size, shuffle=False, num_workers=4)
-        
+
+        # Singular test image
+        self.test_data = self.train_dataset.test_image()
+
     def shape(self):    
         return self.train_dataset[0][0].shape
 
 class Denoise_CBSD68:
-    def __init__(self, data_dir, batch_size, noise_std, train_count, test_count, target_size):
+    def __init__(self, data_dir, batch_size, noise_std, train_count, target_size):
         self.data_dir = data_dir
         self.batch_size = batch_size
         self.noise_std = noise_std
         self.train_count = train_count
-        self.test_count = test_count
         self.target_size = target_size
 
+        # Test dataset and DataLoader
         self.train_dataset = NoisyCBSD68(data_dir=data_dir, target_count=train_count, target_size=target_size, noise_std=noise_std)
-        self.test_dataset = NoisyCBSD68(data_dir=data_dir, target_count=test_count, target_size=target_size, noise_std=noise_std)
-
         self.train_loader = DataLoader(self.train_dataset, batch_size=batch_size, shuffle=True, num_workers=4)
-        self.test_loader = DataLoader(self.test_dataset, batch_size=batch_size, shuffle=False, num_workers=4)
-        
+
+        # Singular test image
+        self.test_data = self.train_dataset.test_image()
+
     def shape(self):    
         return self.train_dataset[0][0].shape
 
