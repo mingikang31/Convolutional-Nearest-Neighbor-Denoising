@@ -58,7 +58,6 @@ def measure_psnr(img, img2):
     max_pixel = 1.0  # Assuming the images are normalized between 0 and 1
     psnr = 20 * torch.log10(max_pixel / torch.sqrt(mse))
     return psnr
-
 def visualize_denoising_results(clean_img, noisy_img, denoised_img, save_path):
     """
     Visualize denoising results.
@@ -92,13 +91,13 @@ def visualize_denoising_results(clean_img, noisy_img, denoised_img, save_path):
         # Check if the image is grayscale or RGB
         if img_tensor.shape[0] == 1:
             # Grayscale image: remove channel dim for plotting -> [H, W]
-            img_to_show = img_tensor.squeeze(0)
+            img_to_show = img_tensor.squeeze(0).numpy()
             ax.imshow(img_to_show, cmap='gray', vmin=0, vmax=1)
         elif img_tensor.shape[0] == 3:
             # RGB image: permute channels for plotting -> [H, W, C]
             img_to_show = img_tensor.permute(1, 2, 0)
             # Clamp to [0,1] range for display
-            img_to_show = torch.clamp(img_to_show, 0, 1)
+            img_to_show = torch.clamp(img_to_show, 0, 1).numpy()
             ax.imshow(img_to_show)
         
         ax.set_title(title, fontsize=12)
